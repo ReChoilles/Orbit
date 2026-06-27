@@ -1,14 +1,19 @@
 package com.qx.orbit.bili.presentation
 
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
@@ -39,6 +44,10 @@ fun ReplyDetailScreen(
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
     val focusRequester = remember { FocusRequester() }
+    
+    var showWriteReply by remember { mutableStateOf(false) }
+    var replyTarget by remember { mutableStateOf<Reply?>(null) }
+    val emotes by viewModel.emotes.collectAsState()
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -56,19 +65,34 @@ fun ReplyDetailScreen(
             if (rootReply != null) {
                 val root = rootReply!!
                 item {
+                    ListHeader {
+                        Text(
+                            text = "评论详情",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                item {
                     ReplyCard(
                         reply = root,
                         transformation = SurfaceTransformation(transformationSpec),
                         modifier = Modifier.transformedHeight(this, transformationSpec),
                         navController = navController,
                         onLikeClick = { viewModel.likeRootReply(root.liked) },
-                        onReplyClick = {}
+                        onReplyClick = { 
+                            replyTarget = root
+                            viewModel.loadEmotes()
+                            showWriteReply = true 
+                        }
                     )
                 }
             }
 
             if (childReplies.isNotEmpty() || (rootReply?.childCount ?: 0) > 0) {
-                item {
+
+                /*item {
                     ListHeader {
                         val count = if (childReplies.size > (rootReply?.childCount ?: 0)) childReplies.size else rootReply?.childCount ?: 0
                         Text(
@@ -78,7 +102,7 @@ fun ReplyDetailScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                }
+                }*/
 
                 items(childReplies.size) { index ->
                     if (index == childReplies.size - 1) {
@@ -90,10 +114,28 @@ fun ReplyDetailScreen(
                         modifier = Modifier.transformedHeight(this, transformationSpec),
                         navController = navController,
                         onLikeClick = { viewModel.likeChildReply(childReplies[index].rpid, childReplies[index].liked) },
-                        onReplyClick = {}
+                        onReplyClick = { 
+                            replyTarget = childReplies[index]
+                            viewModel.loadEmotes()
+                            showWriteReply = true
+                        }
                     )
                 }
+                item { Spacer(Modifier.height(20.dp)) }
             }
         }
+    }
+
+    if (showWriteReply) {
+        WriteReplyScreen(
+            visible = showWriteReply,
+            targetName = replyTarget?.sender?.name,
+            emotes = emotes,
+            onSend = { text ->
+                viewModel.sendReply(text, replyTarget)
+                showWriteReply = false
+            },
+            onClose = { showWriteReply = false }
+        )
     }
 }

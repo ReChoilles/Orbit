@@ -19,10 +19,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.text.TextLayoutResult
+import com.qx.orbit.bili.R
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import com.qx.orbit.bili.presentation.ui.components.LevelIcon
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -179,7 +188,11 @@ fun UserDynamicsPage(
                             contentScale = ContentScale.Crop
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = info.name, fontWeight = FontWeight.Bold, color = Color.White)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = info.name, fontWeight = FontWeight.Bold, color = Color.White)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            LevelIcon(level = info.level, isSenior = info.is_senior_member == 1)
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(text = "粉丝: ${info.fans} · 关注: ${info.following}", fontSize = 12.sp, color = Color.Gray)
                         Spacer(modifier = Modifier.height(4.dp))
@@ -197,7 +210,10 @@ fun UserDynamicsPage(
                 Box(modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp).transformedHeight(this@itemsIndexed, transformationSpec)) {
                     DynamicCard(
                         item = item,
-                        transformation = SurfaceTransformation(transformationSpec)
+                        transformation = SurfaceTransformation(transformationSpec),
+                        onClick = { if (item.major_type == "MAJOR_TYPE_OPUS" || item.major_type == "MAJOR_TYPE_ARTICLE") navController.navigate("opus_detail/${item.dynamicId}") else navController.navigate("dynamic_detail/${item.dynamicId}") },
+                        onUserClick = { mid -> navController.navigate("user_space/$mid") },
+                        onArchiveClick = { bvid, aid -> navController.navigate("detail/$bvid/$aid") }
                     )
                 }
             }
@@ -297,7 +313,10 @@ fun UserArticlesPage(
 fun DynamicCard(
     item: Dynamic, 
     modifier: Modifier = Modifier,
-    transformation: SurfaceTransformation? = null
+    transformation: SurfaceTransformation? = null,
+    onClick: () -> Unit = {},
+    onUserClick: (Long) -> Unit = {},
+    onArchiveClick: (String, Long) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val getImageRequest = { url: String, isCover: Boolean ->
@@ -314,20 +333,75 @@ fun DynamicCard(
     }
 
     Card(
-        onClick = {}, 
+        onClick = onClick, 
         modifier = modifier.fillMaxWidth(), 
         shape = RoundedCornerShape(12.dp),
         transformation = transformation
     ) {
         Column {
-            Text(text = item.pubTime, fontSize = 10.sp, color = Color.Gray)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                AsyncImage(
+                    model = item.userInfo?.avatar,
+                    contentDescription = "Avatar",
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(R.drawable.akari),
+                    modifier = Modifier.size(28.dp).clip(CircleShape)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.userInfo?.name ?: "Unknown",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = if (item.major_type == "MAJOR_TYPE_ARCHIVE") "投稿了视频" else "发布了动态",
+                        fontSize = 10.sp,
+                        color = Color.Gray,
+                        maxLines = 1
+                    )
+                }
+            }
+            Text(
+                text = item.pubTime, 
+                fontSize = 10.sp, 
+                color = Color.Gray,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.End
+            )
             Spacer(modifier = Modifier.height(4.dp))
             if (item.title.isNotEmpty()) {
                 Text(text = item.title, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(4.dp))
             }
             if (item.content.isNotEmpty() && item.content != item.archiveTitle) {
-                Text(text = item.content, fontSize = 12.sp, color = Color.White, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                val (richText, inlineContent) = parseRichText(item.content, item.emotes, item.members, emptyMap())
+                val textLayoutResult = remember { mutableStateOf<TextLayoutResult?>(null) }
+                Text(
+                    text = richText,
+                    inlineContent = inlineContent,
+                    fontSize = 12.sp,
+                    color = Color.White,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified),
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures { offset ->
+                            val pos = textLayoutResult.value?.getOffsetForPosition(offset) ?: -1
+                            var handled = false
+                            if (pos >= 0) {
+                                richText.getStringAnnotations("USER", pos, pos).firstOrNull()?.let {
+                                    onUserClick(it.item.toLongOrNull() ?: 0L)
+                                    handled = true
+                                }
+                            }
+                            if (!handled) onClick()
+                        }
+                    },
+                    onTextLayout = { textLayoutResult.value = it }
+                )
             }
             
             if (item.images.isNotEmpty()) {
@@ -336,8 +410,8 @@ fun DynamicCard(
                     AsyncImage(
                         model = getImageRequest(item.images.first(), false),
                         contentDescription = null,
-                        modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
+                        modifier = Modifier.height(100.dp).clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Fit
                     )
                 } else {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -356,7 +430,11 @@ fun DynamicCard(
             if (item.major_type == "MAJOR_TYPE_ARCHIVE" && item.cover.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
-                    modifier = Modifier.fillMaxWidth().background(Color.DarkGray.copy(alpha = 0.5f), RoundedCornerShape(8.dp)).padding(4.dp),
+                    modifier = Modifier.fillMaxWidth().background(Color.DarkGray.copy(alpha = 0.5f), RoundedCornerShape(8.dp)).padding(4.dp).clickable {
+                        if (item.bvid.isNotEmpty() || item.comment_id > 0) {
+                            onArchiveClick(item.bvid, item.comment_id)
+                        }
+                    },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AsyncImage(
@@ -378,7 +456,31 @@ fun DynamicCard(
                     Text(text = "@${forward.userInfo?.name ?: "已失效动态"}", fontSize = 10.sp, color = Color(0xFF64B5F6), fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(2.dp))
                     if (forward.content.isNotEmpty() && forward.content != forward.archiveTitle) {
-                        Text(text = forward.content, fontSize = 11.sp, color = Color.LightGray, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        val (richText, inlineContent) = parseRichText(forward.content, forward.emotes, forward.members, emptyMap())
+                        val textLayoutResult = remember { mutableStateOf<TextLayoutResult?>(null) }
+                        Text(
+                            text = richText,
+                            inlineContent = inlineContent,
+                            fontSize = 11.sp,
+                            color = Color.LightGray,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified),
+                            modifier = Modifier.pointerInput(Unit) {
+                                detectTapGestures { offset ->
+                                    val pos = textLayoutResult.value?.getOffsetForPosition(offset) ?: -1
+                                    var handled = false
+                                    if (pos >= 0) {
+                                        richText.getStringAnnotations("USER", pos, pos).firstOrNull()?.let {
+                                            onUserClick(it.item.toLongOrNull() ?: 0L)
+                                            handled = true
+                                        }
+                                    }
+                                    if (!handled) onClick()
+                                }
+                            },
+                            onTextLayout = { textLayoutResult.value = it }
+                        )
                     }
                     if (forward.images.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))

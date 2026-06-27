@@ -99,7 +99,8 @@ object ReplyApi {
     internal data class ContentData(
         @SerializedName("message") val message: String? = null,
         @SerializedName("pictures") val pictures: List<PictureData>? = null,
-        @SerializedName("emote") val emote: Map<String, EmoteData>? = null
+        @SerializedName("emote") val emote: Map<String, EmoteData>? = null,
+        @SerializedName("members") val members: List<MemberData>? = null
     )
 
     internal data class EmoteData(
@@ -222,11 +223,11 @@ object ReplyApi {
         Pair(0, reply)
     }
 
-    suspend fun likeReply(oid: Long, rpid: Long, action: Int): Int = withContext(Dispatchers.IO) {
+    suspend fun likeReply(oid: Long, rpid: Long, action: Int, type: Int = 1): Int = withContext(Dispatchers.IO) {
         val body = FormBody.Builder()
             .add("oid", oid.toString())
             .add("rpid", rpid.toString())
-            .add("type", "1")
+            .add("type", type.toString())
             .add("action", action.toString())
             .add("csrf", CookieManager.getCsrf())
             .build()
@@ -317,6 +318,9 @@ object ReplyApi {
                     url = it.value.url ?: "",
                     size = it.value.meta?.size ?: 1
                 ) 
+            } ?: emptyMap(),
+            members = data.content?.members?.filter { it.uname != null && it.mid != null }?.associate { 
+                it.uname!! to (it.mid!!.toLongOrNull() ?: 0L) 
             } ?: emptyMap()
         )
     }

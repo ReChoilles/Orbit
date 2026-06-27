@@ -132,7 +132,7 @@ fun WriteReplyScreen(
                                 onValueChange = { text = it },
                                 placeholder = {
                                     Material3Text(
-                                        "输入回复...",
+                                        "写下你的评论",
                                         color = MaterialTheme.colorScheme.outline
                                     )
                                 },
@@ -203,7 +203,7 @@ fun WriteReplyScreen(
                                     TransformedText(richText, offsetMapping)
                                 }
                             )
-                            Button(
+                            FilledIconButton(
                                 onClick = {
                                     if (text.text.isNotEmpty()) {
                                         isSending = true
@@ -212,8 +212,8 @@ fun WriteReplyScreen(
                                     }
                                 },
                                 modifier = Modifier.size(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                shape = CircleShape
+                                colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
+                                shapes = IconButtonDefaults.animatedShapes()
                             ) {
                                 if (isSending) {
                                     CircularProgressIndicator(

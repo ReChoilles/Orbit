@@ -1,6 +1,8 @@
 package com.qx.orbit.bili.presentation.settings
 
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -62,6 +64,10 @@ fun SettingsScreen(navController: NavController) {
             item {
                 Button(
                     onClick = { navController.navigate("settings_terminal_player") },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
@@ -78,6 +84,10 @@ fun SettingsScreen(navController: NavController) {
             item {
                 Button(
                     onClick = { navController.navigate("settings_ui") },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
@@ -94,6 +104,10 @@ fun SettingsScreen(navController: NavController) {
             item {
                 Button(
                     onClick = { /* TODO */ },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
@@ -110,6 +124,10 @@ fun SettingsScreen(navController: NavController) {
             item {
                 Button(
                     onClick = { /* TODO */ },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
@@ -122,6 +140,7 @@ fun SettingsScreen(navController: NavController) {
                     Text(text = "关于", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
+            item { Spacer(Modifier.height(20.dp)) }
         }
     }
 }
@@ -208,6 +227,10 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
                         maxLines = nextLines
                         SharedPreferencesUtil.putInt("player_danmaku_maxline", nextLines)
                     },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
@@ -243,6 +266,10 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
                         currentQn = nextQn
                         SharedPreferencesUtil.putInt("play_qn", nextQn)
                     },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
@@ -257,6 +284,7 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
                     Text(text = "视频清晰度: $label$lockIcon", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
+            item { Spacer(Modifier.height(20.dp)) }
         }
     }
 }

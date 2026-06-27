@@ -3,6 +3,7 @@ package com.qx.orbit.bili.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.qx.orbit.bili.data.api.ReplyApi
+import com.qx.orbit.bili.data.api.EmoteApi
 import com.qx.orbit.bili.data.model.Reply
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +23,11 @@ class ReplyDetailViewModel : ViewModel() {
     private var page = 1
     private var oid: Long = 0
     private var rpid: Long = 0
+
+    private val _emotes = MutableStateFlow<List<EmoteApi.EmotePackage>?>(null)
+    val emotes: StateFlow<List<EmoteApi.EmotePackage>?> = _emotes.asStateFlow()
+
+    private val _isEmoteLoading = MutableStateFlow(false)
 
     fun initData(root: Reply) {
         if (_rootReply.value != null && _rootReply.value?.rpid == root.rpid) return
@@ -86,6 +92,43 @@ class ReplyDetailViewModel : ViewModel() {
                             reply
                         }
                     }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun loadEmotes() {
+        if (_emotes.value != null) return
+        _isEmoteLoading.value = true
+        viewModelScope.launch {
+            try {
+                val result = EmoteApi.getEmotes(EmoteApi.BUSINESS_REPLY)
+                _emotes.value = result
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isEmoteLoading.value = false
+            }
+        }
+    }
+
+    fun sendReply(text: String, target: Reply?) {
+        viewModelScope.launch {
+            try {
+                val parentId = target?.rpid ?: rpid
+                val (code, reply) = ReplyApi.sendReply(
+                    oid = oid,
+                    root = rpid,
+                    parent = parentId,
+                    text = text,
+                    type = ReplyApi.REPLY_TYPE_VIDEO
+                )
+                if (code == 0) {
+                    page = 1
+                    _childReplies.value = emptyList()
+                    loadMore()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

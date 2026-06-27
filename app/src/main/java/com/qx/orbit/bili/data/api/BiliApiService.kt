@@ -107,7 +107,7 @@ interface BiliApiService {
 
     @FormUrlEncoded
     @POST("https://api.vc.bilibili.com/dynamic_like/v1/dynamic_like/thumb")
-    suspend fun likeDynamic(@Field("dynamic_id") dynamicId: Long, @Field("up") up: Int, @Field("csrf") csrf: String): ApiResponse<Unit>
+    suspend fun likeDynamic(@Field("dynamic_id") dynamicId: String, @Field("up") up: Int, @Field("csrf") csrf: String): ApiResponse<Unit>
 
     // ===== History =====
 

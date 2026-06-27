@@ -1,7 +1,7 @@
 package com.qx.orbit.bili.data.model
 
 data class Dynamic(
-    val dynamicId: Long = 0,
+    val dynamicId: String = "",
     val type: String = "",
     val comment_id: Long = 0,
     val comment_type: Int = 0,
@@ -17,7 +17,9 @@ data class Dynamic(
     val images: List<String> = emptyList(),
     val cover: String = "",
     val bvid: String = "",
-    val archiveTitle: String = ""
+    val archiveTitle: String = "",
+    val emotes: Map<String, Emote> = emptyMap(),
+    val members: Map<String, Long> = emptyMap()
 ) {
     companion object {
         const val DYNAMIC_TYPE_UGC_SEASON = "DYNAMIC_TYPE_UGC_SEASON"
@@ -49,7 +51,8 @@ data class Opus(
 data class OpusParagraph(
     val align: Int = 0,
     val type: Int = 0,
-    val content: Any? = null
+    val textNodes: List<OpusTextNode> = emptyList(),
+    val pics: List<String> = emptyList()
 ) {
     companion object {
         const val TYPE_TEXT = 1
@@ -64,6 +67,18 @@ data class OpusParagraph(
         const val TYPE_ARTICLE = 102
     }
 }
+
+data class OpusTextNode(
+    val text: String,
+    val bold: Boolean = false,
+    val italic: Boolean = false,
+    val color: String? = null,
+    val fontSize: Int = 17,
+    val jumpUrl: String? = null,
+    val emoteUrl: String? = null,
+    val emoteSize: Int = 1,
+    val memberId: Long? = null
+)
 
 data class OpusCard(
     val title: String = "",

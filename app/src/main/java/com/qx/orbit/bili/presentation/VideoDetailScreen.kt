@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
@@ -118,6 +120,7 @@ import com.qx.orbit.bili.data.model.Reply
 import com.qx.orbit.bili.data.model.VideoCard
 import com.qx.orbit.bili.data.model.VideoInfo
 import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
+import com.qx.orbit.bili.presentation.ui.components.LevelIcon
 import com.qx.orbit.bili.presentation.viewmodel.VideoDetailViewModel
 import com.qx.orbit.bili.util.LinkResolver
 import com.qx.orbit.bili.util.SharedPreferencesUtil
@@ -127,6 +130,7 @@ import kotlinx.coroutines.withContext
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import androidx.core.net.toUri
+import com.qx.orbit.bili.presentation.theme.BiliPink
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -643,9 +647,9 @@ fun VideoInfoPage(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.List,
+                                painterResource(R.drawable.ic_danmaku),
                                 contentDescription = "Danmaku",
-                                modifier = Modifier.size(12.dp),
+                                modifier = Modifier.height(12.dp),
                                 tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                             )
                             Spacer(modifier = Modifier.width(2.dp))
@@ -718,7 +722,7 @@ fun VideoInfoPage(
                     val isCoined = (videoInfo.stats?.coined ?: 0) > 0
                     val isFav = videoInfo.stats?.favoured == true
                     
-                    val activeColor = Color(0xFFfb8799)
+                    val activeColor = BiliPink
                     val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
                     
                     val likeInteractionSource = remember { MutableInteractionSource() }
@@ -870,6 +874,11 @@ fun ReplyCard(
     val context = LocalContext.current
     var linkClicked by remember { mutableStateOf(false) }
     var resolvedB23Links by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var showImageDialog by remember { mutableStateOf<String?>(null) }
+    
+    showImageDialog?.let { url ->
+        ImageViewerDialog(imageUrl = url, onDismiss = { showImageDialog = null })
+    }
     
     LaunchedEffect(reply.message) {
         val b23Pattern = Regex("https?://b23\\.tv/\\S+", RegexOption.IGNORE_CASE)
@@ -893,9 +902,22 @@ fun ReplyCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
         Column(modifier = Modifier) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { 
+                    reply.sender?.mid?.let { mid ->
+                        navController.navigate("user_space/$mid")
+                    }
+                }
+            ) {
+                val avatarUrl = reply.sender?.avatar ?: ""
+                val fixedAvatarUrl = when {
+                    avatarUrl.startsWith("//") -> "https:$avatarUrl"
+                    avatarUrl.startsWith("http://") -> avatarUrl.replaceFirst("http://", "https://")
+                    else -> avatarUrl
+                }
                 AsyncImage(
-                    model = reply.sender?.avatar,
+                    model = fixedAvatarUrl,
                     contentDescription = "Avatar",
                     contentScale = ContentScale.Crop,
                     error = painterResource(R.drawable.akari),
@@ -907,14 +929,19 @@ fun ReplyCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(modifier = Modifier.width(4.dp))
+                LevelIcon(
+                    level = reply.sender?.level ?: 0,
+                    isSenior = (reply.sender?.is_senior_member ?: 0) == 1
+                )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            val (richText, inlineContent) = parseRichText(reply.message, reply.emotes, resolvedB23Links)
+            val (richText, inlineContent) = parseRichText(reply.message, reply.emotes, reply.members, resolvedB23Links)
             val textLayoutResult = remember { mutableStateOf<TextLayoutResult?>(null) }
             Text(
                 text = richText,
                 inlineContent = inlineContent,
-                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified),
+                style = MaterialTheme.typography.bodySmall.copy(lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.pointerInput(Unit) {
                     detectTapGestures { offset ->
@@ -937,14 +964,46 @@ fun ReplyCard(
                                     navController.navigate("detail/$bvid/$aid")
                                 }
                             }
+                            richText.getStringAnnotations(tag = "USER", start = pos, end = pos).firstOrNull()?.let { annotation ->
+                                linkClicked = true
+                                val mid = annotation.item.toLongOrNull() ?: 0L
+                                if (mid > 0) {
+                                    navController.navigate("user_space/$mid")
+                                }
+                            }
                         }
                     }
                 },
                 onTextLayout = { textLayoutResult.value = it }
             )
+            if (reply.pictureList.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                    val isSingle = reply.pictureList.size == 1
+                    reply.pictureList.forEach { url ->
+                        val fixedUrl = when {
+                            url.startsWith("//") -> "https:$url"
+                            url.startsWith("http://") -> url.replaceFirst("http://", "https://")
+                            else -> url
+                        }
+                        AsyncImage(
+                            model = fixedUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .height(80.dp)
+                                .then(if (isSingle) Modifier else Modifier.width(80.dp))
+                                .padding(end = 4.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { showImageDialog = fixedUrl },
+                            contentScale = if (isSingle) ContentScale.Fit else ContentScale.Crop
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 // Like Button
+                val activeColor = BiliPink
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { onLikeClick() }.padding(4.dp)
@@ -953,13 +1012,13 @@ fun ReplyCard(
                         painter = painterResource(R.drawable.icon_like_0),
                         contentDescription = "Like",
                         modifier = Modifier.size(14.dp),
-                        tint = if (reply.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (reply.liked) activeColor else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${reply.likeCount}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (reply.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = if (reply.likeCount > 0) "${reply.likeCount}" else "点赞",
+                        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                        color = if (reply.liked) activeColor else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 10.sp
                     )
                 }
@@ -1031,6 +1090,7 @@ fun VideoRelatedPage(
 fun parseRichText(
     text: String,
     emotes: Map<String, Emote>,
+    members: Map<String, Long> = emptyMap(),
     resolvedB23Links: Map<String, String> = emptyMap()
 ): Pair<AnnotatedString, Map<String, InlineTextContent>> {
     val inlineContentMap = mutableMapOf<String, InlineTextContent>()
@@ -1056,7 +1116,7 @@ fun parseRichText(
     val fullPattern = Regex("($urlPattern|$videoPattern)")
     
     val annotatedString = buildAnnotatedString {
-        if (emotes.isEmpty() && !processedText.contains(fullPattern)) {
+        if (emotes.isEmpty() && members.isEmpty() && !processedText.contains(fullPattern)) {
             append(processedText)
             return@buildAnnotatedString
         }
@@ -1067,32 +1127,49 @@ fun parseRichText(
         for (i in parts.indices) {
             val part = parts[i]
             if (part.isNotEmpty()) {
-                if (emotes.isNotEmpty()) {
-                    val emotePattern = "\\[[^]]+]".toRegex()
+                if (emotes.isNotEmpty() || members.isNotEmpty()) {
+                    val tokenPattern = Regex("\\[[^]]+]|@([\\w\\u4e00-\\u9fa5_-]+)")
                     var lastIdx = 0
-                    for (emoteMatch in emotePattern.findAll(part)) {
-                        val emoteKey = emoteMatch.value
-                        val emote = emotes[emoteKey]
-                        if (emote != null) {
-                            append(part.substring(lastIdx, emoteMatch.range.first))
-                            appendInlineContent(emoteKey, emoteKey)
-                            if (!inlineContentMap.containsKey(emoteKey)) {
-                                val sizeSp = (emote.size * 18).sp
-                                inlineContentMap[emoteKey] = InlineTextContent(
-                                    Placeholder(
-                                        width = sizeSp,
-                                        height = sizeSp,
-                                        placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter
-                                    )
-                                ) {
-                                    AsyncImage(
-                                        model = emote.url,
-                                        contentDescription = emote.name,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
+                    for (match in tokenPattern.findAll(part)) {
+                        val token = match.value
+                        
+                        if (token.startsWith("[")) {
+                            // Emote
+                            val emote = emotes[token]
+                            if (emote != null) {
+                                append(part.substring(lastIdx, match.range.first))
+                                appendInlineContent(token, token)
+                                if (!inlineContentMap.containsKey(token)) {
+                                    val sizeSp = (emote.size * 18).sp
+                                    inlineContentMap[token] = InlineTextContent(
+                                        Placeholder(
+                                            width = sizeSp,
+                                            height = sizeSp,
+                                            placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter
+                                        )
+                                    ) {
+                                        AsyncImage(
+                                            model = emote.url,
+                                            contentDescription = emote.name,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
                                 }
+                                lastIdx = match.range.last + 1
                             }
-                            lastIdx = emoteMatch.range.last + 1
+                        } else if (token.startsWith("@")) {
+                            // Mention
+                            val name = match.groupValues[1]
+                            val mid = members[name]
+                            if (mid != null) {
+                                append(part.substring(lastIdx, match.range.first))
+                                pushStringAnnotation(tag = "USER", annotation = mid.toString())
+                                withStyle(style = SpanStyle(color = BiliPink)) {
+                                    append(token)
+                                }
+                                pop()
+                                lastIdx = match.range.last + 1
+                            }
                         }
                     }
                     if (lastIdx < part.length) {
@@ -1117,4 +1194,29 @@ fun parseRichText(
         }
     }
     return Pair(annotatedString, inlineContentMap)
+}
+
+@Composable
+fun ImageViewerDialog(
+    imageUrl: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        visible = true,
+        onDismissRequest = onDismiss
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
 }

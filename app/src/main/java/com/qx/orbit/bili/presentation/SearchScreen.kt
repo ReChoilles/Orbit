@@ -182,6 +182,7 @@ fun SearchInputScreen(navController: NavHostController) {
                         onClick = { performSearch(searchText) },
                         modifier = Modifier.size(IconButtonDefaults.DefaultButtonSize),
                         enabled = searchText.isNotBlank(),
+                        shapes = IconButtonDefaults.animatedShapes(),
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
@@ -209,9 +210,9 @@ fun SearchInputScreen(navController: NavHostController) {
                     SwipeToReveal(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .animateItem()
-                            .transformedHeight(this@items, transformationSpec)
-                            .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } },
+                            .transformedHeight(this,transformationSpec)
+                            .animateItem(),
+
                         primaryAction = {
                             PrimaryActionButton(
                                 onClick = {
@@ -233,12 +234,14 @@ fun SearchInputScreen(navController: NavHostController) {
                         Button(
                             onClick = { performSearch(history) },
                             modifier = Modifier.fillMaxWidth(),
+                            transformation = SurfaceTransformation(transformationSpec),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                         ) {
                             Text(text = history, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
+                item { Spacer(Modifier.height(20.dp)) }
             }
         }
     }
@@ -569,6 +572,7 @@ fun SearchResultScreen(viewModel: SearchViewModel, query: String, navController:
                                     Spacer(modifier = Modifier.width(4.dp))
                                     FilledIconButton(
                                         onClick = { doInnerSearch() },
+                                        shapes = IconButtonDefaults.animatedShapes(),
                                         modifier = Modifier.size(IconButtonDefaults.DefaultButtonSize),
                                         colors = IconButtonDefaults.filledIconButtonColors(
                                             containerColor = MaterialTheme.colorScheme.primary,

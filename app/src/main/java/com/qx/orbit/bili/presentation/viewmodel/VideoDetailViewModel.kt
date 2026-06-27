@@ -108,15 +108,27 @@ class VideoDetailViewModel : ViewModel() {
 
     fun likeReply(rpid: Long, isLiked: Boolean) {
         viewModelScope.launch {
+            val action = if (isLiked) 0 else 1 // 1 for like, 0 for cancel
+            // Optimistic update
+            _replies.value = _replies.value.map { reply ->
+                if (reply.rpid == rpid) {
+                    reply.copy(
+                        liked = !isLiked,
+                        likeCount = reply.likeCount + (if (isLiked) -1 else 1)
+                    )
+                } else {
+                    reply
+                }
+            }
             try {
-                val action = if (isLiked) 0 else 1 // 1 for like, 0 for cancel
                 val result = ReplyApi.likeReply(aid, rpid, action)
-                if (result == 0) {
+                if (result != 0) {
+                    // Revert if failed
                     _replies.value = _replies.value.map { reply ->
                         if (reply.rpid == rpid) {
                             reply.copy(
-                                liked = !isLiked,
-                                likeCount = reply.likeCount + (if (isLiked) -1 else 1)
+                                liked = isLiked,
+                                likeCount = reply.likeCount + (if (isLiked) 1 else -1)
                             )
                         } else {
                             reply
@@ -125,6 +137,17 @@ class VideoDetailViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                // Revert on exception
+                _replies.value = _replies.value.map { reply ->
+                    if (reply.rpid == rpid) {
+                        reply.copy(
+                            liked = isLiked,
+                            likeCount = reply.likeCount + (if (isLiked) 1 else -1)
+                        )
+                    } else {
+                        reply
+                    }
+                }
             }
         }
     }
@@ -229,9 +252,7 @@ class VideoDetailViewModel : ViewModel() {
                 if (code == 0) {
                     onSuccess()
                     // Refetch replies to show the new comment
-                    if (root == 0L) {
-                        loadReplies(reset = true)
-                    }
+                    loadReplies(reset = true)
                 } else {
                     onError("发送失败 (code: $code)")
                 }

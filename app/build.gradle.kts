@@ -78,6 +78,7 @@ dependencies {
 
     // Coil for Compose
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("io.coil-kt:coil-gif:2.6.0")
 
     // AppCompat + RecyclerView
     implementation("androidx.appcompat:appcompat:1.6.1")

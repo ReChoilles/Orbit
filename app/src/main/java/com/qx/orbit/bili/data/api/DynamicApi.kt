@@ -10,7 +10,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.Request
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import org.json.JSONArray
+import com.qx.orbit.bili.data.model.Emote
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -85,14 +89,12 @@ object DynamicApi {
         jsonObj.optJSONObject("data")?.optLong("dynamic_id", 0) ?: 0L
     }
 
-    suspend fun likeDynamic(dyid: Long, up: Boolean): Int = withContext(Dispatchers.IO) {
-        val body = FormBody.Builder()
-            .add("dynamic_id", dyid.toString())
-            .add("up", if (up) "1" else "0")
-            .add("csrf", CookieManager.getCsrf())
-            .build()
+    suspend fun likeDynamic(dyid: String, up: Boolean): Int = withContext(Dispatchers.IO) {
+        val csrf = CookieManager.getCsrf()
+        val jsonStr = "{\"dyn_id_str\":\"$dyid\",\"up\":${if (up) 1 else 2},\"csrf\":\"$csrf\"}"
+        val body = jsonStr.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
         val request = Request.Builder()
-            .url("https://api.bilibili.com/x/dynamic/feed/item/thumb")
+            .url("https://api.bilibili.com/x/dynamic/feed/dyn/thumb?csrf=$csrf")
             .post(body)
             .addHeader("Cookie", CookieManager.getCookie())
             .addHeader("User-Agent", USER_AGENT)
@@ -141,10 +143,11 @@ object DynamicApi {
         mid: Long = 0,
         type: Int = 0
     ): Pair<Long, List<Dynamic>> = withContext(Dispatchers.IO) {
+        val features = "itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,forwardListHidden,decorationCard,commentsNewVersion,onlyfansAssetsV2,ugcDelete,onlyfansQaCard,avatarAutoTheme,sunflowerStyle,eva3CardOpus,eva3CardVideo,eva3CardComment"
         val rawUrl = if (mid > 0) {
-            "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid=$mid&offset=$offset"
+            "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid=$mid&offset=$offset&features=$features"
         } else {
-            var params = "offset=$offset"
+            var params = "offset=$offset&features=$features"
             if (type > 0) params += "&type=$type"
             "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all?$params"
         }
@@ -169,8 +172,9 @@ object DynamicApi {
         Pair(if (hasMore) newOffset else 0L, dynamicList)
     }
 
-    suspend fun getDynamic(id: Long): Dynamic? = withContext(Dispatchers.IO) {
-        val url = "https://api.bilibili.com/x/polymer/web-dynamic/v1/detail?id=$id"
+    suspend fun getDynamic(id: String): Dynamic? = withContext(Dispatchers.IO) {
+        val features = "itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,forwardListHidden,decorationCard,commentsNewVersion,onlyfansAssetsV2,ugcDelete,onlyfansQaCard,avatarAutoTheme,sunflowerStyle,eva3CardOpus,eva3CardVideo,eva3CardComment"
+        val url = "https://api.bilibili.com/x/polymer/web-dynamic/v1/detail?id=$id&features=$features"
         val json = httpGet(url)
         val jsonObj = JSONObject(json)
         if (jsonObj.optInt("code") != 0) return@withContext null
@@ -213,7 +217,7 @@ object DynamicApi {
     }
 
     private fun analyzeDynamic(json: JSONObject): Dynamic {
-        val dynamicId = json.optLong("id_str", 0)
+        val dynamicId = json.optString("id_str", "")
         val type = json.optString("type", "")
         val modules = json.optJSONObject("modules") ?: JSONObject()
 
@@ -236,6 +240,10 @@ object DynamicApi {
 
         val desc = dynamicModule.optJSONObject("desc")
         var content = desc?.optString("text", "") ?: ""
+        
+        val emotes = mutableMapOf<String, Emote>()
+        val members = mutableMapOf<String, Long>()
+        parseRichTextNodes(desc?.optJSONArray("rich_text_nodes"), emotes, members)
 
         val majorObject: Any? = null
         val commentId: Long
@@ -287,7 +295,9 @@ object DynamicApi {
                         }
                     }
                 }
-                val summary = opus?.optJSONObject("summary")?.optString("text", "") ?: ""
+                val summaryObj = opus?.optJSONObject("summary")
+                val summary = summaryObj?.optString("text", "") ?: ""
+                parseRichTextNodes(summaryObj?.optJSONArray("rich_text_nodes"), emotes, members)
                 val title = opus?.optString("title", "") ?: ""
                 if (content.isEmpty()) content = summary.ifEmpty { title }
             }
@@ -310,7 +320,7 @@ object DynamicApi {
                 if (content.isEmpty()) content = commonTitle
             }
             else -> {
-                commentId = dynamicId
+                commentId = dynamicId.toLongOrNull() ?: 0L
                 commentType = 17
             }
         }
@@ -334,7 +344,7 @@ object DynamicApi {
         )
 
         val moreModule = modules.optJSONObject("module_more") ?: JSONObject()
-        val dynIdStr = moreModule.optString("dyn_id_str", dynamicId.toString())
+        val dynIdStr = moreModule.optString("dyn_id_str", dynamicId)
 
         val origDyn = json.optJSONObject("orig")
         val dynamicForward = if (origDyn != null) {
@@ -362,8 +372,41 @@ object DynamicApi {
             images = images,
             cover = cover,
             bvid = bvid,
-            archiveTitle = archiveTitle
+            archiveTitle = archiveTitle,
+            emotes = emotes,
+            members = members
         )
+    }
+
+    private fun parseRichTextNodes(nodes: JSONArray?, emotes: MutableMap<String, Emote>, members: MutableMap<String, Long>) {
+        if (nodes == null) return
+        for (i in 0 until nodes.length()) {
+            val node = nodes.optJSONObject(i) ?: continue
+            val type = node.optString("type", "")
+            val text = node.optString("text", "")
+            if (type == "RICH_TEXT_NODE_TYPE_EMOJI") {
+                val emoji = node.optJSONObject("emoji")
+                val url = emoji?.optString("icon_url", "")
+                val size = emoji?.optInt("size", 1) ?: 1
+                if (!url.isNullOrEmpty()) {
+                    emotes[text] = Emote(
+                        id = 0,
+                        packageId = 0,
+                        name = text,
+                        alias = text,
+                        url = url,
+                        size = size
+                    )
+                }
+            } else if (type == "RICH_TEXT_NODE_TYPE_AT") {
+                val rid = node.optString("rid", "")
+                val mid = rid.toLongOrNull()
+                if (mid != null) {
+                    val name = text.removePrefix("@").trim()
+                    members[name] = mid
+                }
+            }
+        }
     }
 
     private fun httpGet(url: String): String {

@@ -10,9 +10,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,17 +23,15 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -66,44 +62,43 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
-import androidx.navigation.navArgument
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.wear.compose.navigation.SwipeDismissableNavHost
-import androidx.wear.compose.navigation.composable
-import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import androidx.navigation.navArgument
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import com.qx.orbit.bili.presentation.component.WysTimeText
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
+import androidx.wear.compose.navigation.SwipeDismissableNavHost
+import androidx.wear.compose.navigation.composable
+import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import androidx.wear.compose.ui.tooling.preview.WearPreviewDevices
 import androidx.wear.compose.ui.tooling.preview.WearPreviewFontScales
-import androidx.navigation.compose.rememberNavController
-import androidx.wear.compose.material3.ButtonDefaults
 import coil.compose.AsyncImage
 import com.google.gson.Gson
 import com.qx.orbit.bili.data.model.PlayerData
 import com.qx.orbit.bili.data.model.Reply
 import com.qx.orbit.bili.data.model.VideoCard
 import com.qx.orbit.bili.data.remote.CookieManager
+import com.qx.orbit.bili.presentation.component.WysTimeText
 import com.qx.orbit.bili.presentation.player.PlayerScreen
+import com.qx.orbit.bili.presentation.settings.SettingTerminalPlayerScreen
+import com.qx.orbit.bili.presentation.settings.SettingUIScreen
+import com.qx.orbit.bili.presentation.settings.SettingsScreen
 import com.qx.orbit.bili.presentation.theme.OrbitTheme
 import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
 import com.qx.orbit.bili.presentation.viewmodel.MainViewModel
-import com.qx.orbit.bili.presentation.viewmodel.TabMode
-import com.qx.orbit.bili.presentation.viewmodel.VideoDetailViewModel
 import com.qx.orbit.bili.presentation.viewmodel.SearchViewModel
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
+import com.qx.orbit.bili.presentation.viewmodel.TabMode
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
@@ -134,6 +129,25 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
             ) {
             composable("home") {
                 HomeScreen(viewModel, navController)
+            }
+            composable(
+                "dynamic_detail/{id}",
+                arguments = listOf(
+                    navArgument("id") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id") ?: ""
+                DynamicDetailScreen(dynamicId = id, navController = navController)
+            }
+            composable(
+                "opus_detail/{id}",
+                arguments = listOf(
+                    navArgument("id") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val idStr = backStackEntry.arguments?.getString("id") ?: ""
+                val id = idStr.toLongOrNull() ?: 0L
+                OpusDetailScreen(opusId = id, navController = navController)
             }
             composable(
                 "detail/{bvid}/{aid}",
@@ -197,13 +211,13 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
                 UserSpaceScreen(mid = mid, viewModel = userSpaceViewModel, navController = navController)
             }
             composable("settings_main") {
-                com.qx.orbit.bili.presentation.settings.SettingsScreen(navController = navController)
+                SettingsScreen(navController = navController)
             }
             composable("settings_terminal_player") {
-                com.qx.orbit.bili.presentation.settings.SettingTerminalPlayerScreen(navController = navController)
+                SettingTerminalPlayerScreen(navController = navController)
             }
             composable("settings_ui") {
-                com.qx.orbit.bili.presentation.settings.SettingUIScreen(navController = navController)
+                SettingUIScreen(navController = navController)
             }
         }
     }
@@ -360,9 +374,13 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                             showTabMenu = false
                                             navController.navigate("search")
                                         },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                            contentColor = MaterialTheme.colorScheme.onSurface
+                                        ),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Icon(imageVector = Icons.Default.Search, contentDescription = "搜索")
+                                        Icon(imageVector = Icons.Default.Search, modifier = Modifier.size(20.dp), contentDescription = "搜索")
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text("搜索")
                                     }
@@ -385,12 +403,16 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                             viewModel.switchTab(tab)
                                             showTabMenu = false
                                         },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                            contentColor = MaterialTheme.colorScheme.onSurface
+                                        ),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         if (tab == TabMode.RECOMMEND) {
-                                            Icon(imageVector = Icons.Default.Star, contentDescription = tab.title)
+                                            Icon(imageVector = Icons.Default.Favorite, modifier = Modifier.size(20.dp), contentDescription = tab.title)
                                         } else {
-                                            Icon(imageVector = Icons.Default.ThumbUp, contentDescription = tab.title)
+                                            Icon(imageVector = Icons.Default.Star, modifier = Modifier.size(20.dp), contentDescription = tab.title)
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(tab.title)
@@ -413,9 +435,13 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                             showTabMenu = false
                                             navController.navigate("settings_main")
                                         },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                            contentColor = MaterialTheme.colorScheme.onSurface
+                                        ),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Icon(imageVector = Icons.Default.Settings, contentDescription = "设置")
+                                        Icon(imageVector = Icons.Default.Settings, modifier = Modifier.size(20.dp), contentDescription = "设置")
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text("设置")
                                     }
