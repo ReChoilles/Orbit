@@ -14,6 +14,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.wear.compose.material3.HorizontalPageIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +38,7 @@ import com.qx.orbit.bili.presentation.ui.components.LevelIcon
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,10 +53,14 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import com.qx.orbit.bili.presentation.component.WysTimeText
 import androidx.wear.compose.material3.Text
+import com.qx.orbit.bili.presentation.ui.components.UserAvatar
+import com.qx.orbit.bili.presentation.ui.components.UserNameText
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.qx.orbit.bili.data.model.Dynamic
 import com.qx.orbit.bili.data.model.UserInfo
+import com.qx.orbit.bili.util.formatCount
+import com.qx.orbit.bili.presentation.theme.BiliPink
 import com.qx.orbit.bili.data.model.VideoCard
 import com.qx.orbit.bili.data.model.ArticleCard
 import com.qx.orbit.bili.presentation.ArticleCardItem
@@ -137,6 +145,8 @@ fun UserDynamicsPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val signExpanded = remember { mutableStateOf(false) }
+    
     ScreenScaffold(
         timeText = { WysTimeText() },
         scrollState = listState, 
@@ -164,10 +174,9 @@ fun UserDynamicsPage(
                         val isLive = info.live_room?.live_status == 1
                         val avatarModifier = Modifier
                             .size(60.dp)
-                            .clip(CircleShape)
                             .let {
                                 if (isLive) {
-                                    it.border(2.dp, Color(0xFFFF69B4), CircleShape).clickable {
+                                    it.clickable {
                                         navController.navigate("live_room/${info.live_room?.roomid}")
                                     }
                                 } else {
@@ -175,28 +184,35 @@ fun UserDynamicsPage(
                                 }
                             }
 
-                        AsyncImage(
-                            model = info.avatar.let {
-                                when {
-                                    it.startsWith("//") -> "https:$it"
-                                    it.startsWith("http://") -> it.replaceFirst("http://", "https://")
-                                    else -> it
-                                }
-                            },
-                            contentDescription = info.name,
+                        UserAvatar(
+                            avatarUrl = info.avatar,
+                            officialRole = info.official,
                             modifier = avatarModifier,
-                            contentScale = ContentScale.Crop
+                            isVip = info.vip_role > 0,
+                            isLive = isLive
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = info.name, fontWeight = FontWeight.Bold, color = Color.White)
+                            UserNameText(
+                                name = info.name,
+                                isVip = info.vip_role > 0,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White
+                            )
                             Spacer(modifier = Modifier.width(4.dp))
                             LevelIcon(level = info.level, isSenior = info.is_senior_member == 1)
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(text = "粉丝: ${info.fans} · 关注: ${info.following}", fontSize = 12.sp, color = Color.Gray)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = info.sign, fontSize = 12.sp, color = Color.Gray, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            text = info.sign, 
+                            fontSize = 12.sp, 
+                            color = Color.Gray, 
+                            maxLines = if (signExpanded.value) Int.MAX_VALUE else 1, 
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.clickable { signExpanded.value = !signExpanded.value }
+                        )
                     }
                 }
             }
@@ -207,7 +223,7 @@ fun UserDynamicsPage(
                         viewModel.loadMoreDynamics()
                     }
                 }
-                Box(modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp).transformedHeight(this@itemsIndexed, transformationSpec)) {
+                Box(modifier = Modifier.transformedHeight(this@itemsIndexed, transformationSpec)) {
                     DynamicCard(
                         item = item,
                         transformation = SurfaceTransformation(transformationSpec),
@@ -334,23 +350,22 @@ fun DynamicCard(
 
     Card(
         onClick = onClick, 
-        modifier = modifier.fillMaxWidth(), 
-        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.fillMaxWidth(),
         transformation = transformation
     ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                AsyncImage(
-                    model = item.userInfo?.avatar,
-                    contentDescription = "Avatar",
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(R.drawable.akari),
-                    modifier = Modifier.size(28.dp).clip(CircleShape)
+                UserAvatar(
+                    avatarUrl = item.userInfo?.avatar ?: "",
+                    officialRole = item.userInfo?.official ?: 0,
+                    modifier = Modifier.size(28.dp),
+                    isVip = (item.userInfo?.vip_role ?: 0) > 0
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.userInfo?.name ?: "Unknown",
+                    UserNameText(
+                        name = item.userInfo?.name ?: "Unknown",
+                        isVip = (item.userInfo?.vip_role ?: 0) > 0,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -364,14 +379,7 @@ fun DynamicCard(
                     )
                 }
             }
-            Text(
-                text = item.pubTime, 
-                fontSize = 10.sp, 
-                color = Color.Gray,
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.End
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+
             if (item.title.isNotEmpty()) {
                 Text(text = item.title, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(4.dp))
@@ -518,6 +526,66 @@ fun DynamicCard(
                         }
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                // Like
+                val likeColor = if (item.stats?.liked == true) BiliPink else MaterialTheme.colorScheme.onSurfaceVariant
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.wear.compose.material3.Icon(
+                        painter = painterResource(R.drawable.icon_like_0),
+                        contentDescription = "Like",
+                        modifier = Modifier.size(12.dp),
+                        tint = likeColor
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = formatCount(item.stats?.like ?: 0),
+                        fontSize = 10.sp,
+                        color = likeColor
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                // Share
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.wear.compose.material3.Icon(
+                        imageVector = Icons.Filled.Share,
+                        contentDescription = "Share",
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = formatCount(item.stats?.share ?: 0), 
+                        fontSize = 10.sp, 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                // Reply
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.wear.compose.material3.Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Reply",
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = formatCount(item.stats?.reply ?: 0), 
+                        fontSize = 10.sp, 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = item.pubTime, 
+                    fontSize = 10.sp, 
+                    color = Color.Gray,
+                    textAlign = TextAlign.End
+                )
             }
         }
     }

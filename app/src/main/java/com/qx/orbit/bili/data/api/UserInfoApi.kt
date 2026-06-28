@@ -24,7 +24,10 @@ object UserInfoApi {
         @SerializedName("isLogin") val isLogin: Boolean = false,
         @SerializedName("mid") val mid: Long = 0,
         @SerializedName("uname") val uname: String? = null,
-        @SerializedName("face") val face: String? = null
+        @SerializedName("face") val face: String? = null,
+        @SerializedName("level_info") val level_info: LevelInfo? = null,
+        @SerializedName("is_senior_member") val is_senior_member: Int = 0,
+        @SerializedName("vip") val vip: VipInfoData? = null
     )
 
     internal data class CardDetail(
@@ -39,7 +42,7 @@ object UserInfoApi {
         @SerializedName("vip") val vip: VipInfoData? = null
     )
 
-    internal data class LevelInfo(
+    data class LevelInfo(
         @SerializedName("current_level") val current_level: Int = 0,
         @SerializedName("current_exp") val current_exp: Long = 0,
         @SerializedName("next_exp") val next_exp: Long = 0
@@ -50,7 +53,7 @@ object UserInfoApi {
         @SerializedName("desc") val desc: String? = null
     )
 
-    internal data class VipInfoData(
+    data class VipInfoData(
         @SerializedName("vipType") val vipType: Int = 0,
         @SerializedName("vipStatus") val vipStatus: Int = 0,
         @SerializedName("theme_type") val theme_type: Int = 0,
@@ -218,21 +221,28 @@ object UserInfoApi {
         val contractData = accData?.get("contract") as? Map<String, Any?>
         val isFollowDisplay = contractData?.get("is_follow_display") as? Boolean ?: cardResp.data.following
 
-        UserInfo(
-            mid = midLong,
-            name = card.name ?: "",
-            avatar = card.face ?: "",
-            sign = card.sign ?: "",
-            fans = card.fans,
-            following = card.attention,
-            level = card.level_info?.current_level ?: 0,
-            current_exp = card.level_info?.current_exp ?: 0,
-            next_exp = card.level_info?.next_exp ?: 0,
-            followed = cardResp.data.following,
-            notice = notice,
-            official = card.official_verify?.type ?: -1,
-            officialDesc = card.official_verify?.desc ?: "",
-            vip_role = card.vip?.vipType ?: 0,
+            val rawOfficial = card.official_verify?.type ?: -1
+            val mappedOfficial = when (rawOfficial) {
+                0 -> 1
+                1 -> 2
+                else -> 0
+            }
+
+            UserInfo(
+                mid = midLong,
+                name = card.name ?: "",
+                avatar = card.face ?: "",
+                sign = card.sign ?: "",
+                fans = card.fans,
+                following = card.attention,
+                level = card.level_info?.current_level ?: 0,
+                current_exp = card.level_info?.current_exp ?: 0,
+                next_exp = card.level_info?.next_exp ?: 0,
+                followed = cardResp.data.following,
+                notice = notice,
+                official = mappedOfficial,
+                officialDesc = card.official_verify?.desc ?: "",
+                vip_role = card.vip?.vipStatus ?: 0,
             vip_nickname_color = card.vip?.nickname_color ?: "",
             sys_notice = sysNotice,
             live_room = liveRoom,
@@ -257,7 +267,7 @@ object UserInfoApi {
             next_exp = data.level_info?.next_exp ?: 0,
             official = data.official?.role ?: 0,
             officialDesc = data.official?.title ?: "",
-            vip_role = data.vip?.vipType ?: 0,
+            vip_role = data.vip?.vipStatus ?: 0,
             vip_nickname_color = data.vip?.nickname_color ?: "",
             is_senior_member = data.is_senior_member
         )

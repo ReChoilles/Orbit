@@ -17,6 +17,7 @@ import org.json.JSONArray
 import com.qx.orbit.bili.data.model.Emote
 import java.text.SimpleDateFormat
 import java.util.*
+import com.qx.orbit.bili.util.formatBiliTime
 
 object DynamicApi {
 
@@ -227,7 +228,7 @@ object DynamicApi {
         val face = authorModule.optString("face", "")
         val pubTs = authorModule.optLong("pub_ts", 0)
         val pubTime = if (pubTs > 0) {
-            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(pubTs * 1000)
+            formatBiliTime(pubTs)
         } else ""
         val descText = authorModule.optString("desc", "")
         val canDelete = authorModule.optBoolean("is_top", false)
@@ -325,10 +326,25 @@ object DynamicApi {
             }
         }
 
+        val officialVerify = authorModule.optJSONObject("official_verify")
+        val rawOfficial = officialVerify?.optInt("type", -1) ?: -1
+        val officialType = when (rawOfficial) {
+            0 -> 1
+            1 -> 2
+            else -> 0
+        }
+        val officialDesc = officialVerify?.optString("desc", "") ?: ""
+        
+        val vipObj = authorModule.optJSONObject("vip")
+        val vipStatus = if (vipObj != null && vipObj.has("status")) vipObj.optInt("status", 0) else vipObj?.optInt("vipStatus", 0) ?: 0
+
         val userInfo = UserInfo(
             mid = mid,
             name = name,
-            avatar = face
+            avatar = face,
+            official = officialType,
+            officialDesc = officialDesc,
+            vip_role = vipStatus
         )
 
         val statModule = modules.optJSONObject("module_stat") ?: JSONObject()

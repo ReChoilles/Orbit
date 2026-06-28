@@ -30,11 +30,21 @@ import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.compose.ui.graphics.graphicsLayer
 import com.qx.orbit.bili.data.remote.CookieManager
 import com.qx.orbit.bili.util.SharedPreferencesUtil
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import com.qx.orbit.bili.presentation.ui.components.RoundToast
+import androidx.compose.ui.platform.LocalContext
+import com.google.gson.Gson
+import android.content.Intent
+import com.qx.orbit.bili.presentation.MainActivity
 
 @Composable
 fun SettingsScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val context = LocalContext.current
+    val isLoggedIn = remember { CookieManager.getCookie().isNotEmpty() }
 
     ScreenScaffold(
         timeText = { WysTimeText() },
@@ -58,6 +68,28 @@ fun SettingsScreen(navController: NavController) {
                         }
                 ) {
                     Text(text = "设置")
+                }
+            }
+            
+            if (isLoggedIn) {
+                item {
+                    Button(
+                        onClick = { navController.navigate("settings_login_status") },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .transformedHeight(this, transformationSpec)
+                            .graphicsLayer {
+                                with(transformationSpec) {
+                                    applyContainerTransformation(scrollProgress)
+                                }
+                            }
+                    ) {
+                        Text(text = "登录状态管理", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
 
@@ -103,7 +135,7 @@ fun SettingsScreen(navController: NavController) {
             
             item {
                 Button(
-                    onClick = { /* TODO */ },
+                    onClick = { navController.navigate("settings_preference") },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
@@ -141,6 +173,68 @@ fun SettingsScreen(navController: NavController) {
                 }
             }
             item { Spacer(Modifier.height(20.dp)) }
+        }
+    }
+}
+
+@Composable
+fun SettingPreferenceScreen(navController: NavController) {
+    val listState = rememberTransformingLazyColumnState()
+    val transformationSpec = rememberTransformationSpec()
+
+    ScreenScaffold(
+        scrollState = listState,
+        timeText = { WysTimeText() }
+    ) { contentPadding ->
+        TransformingLazyColumn(
+            state = listState,
+            contentPadding = contentPadding,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            item {
+                ListHeader(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                        .graphicsLayer {
+                            with(transformationSpec) {
+                                applyContainerTransformation(scrollProgress)
+                            }
+                        }
+                ) {
+                    Text(text = "偏好设置")
+                }
+            }
+
+            item {
+                var checked by remember { mutableStateOf(SharedPreferencesUtil.getBoolean("use_hd_qr_code", true)) }
+                SwitchButton(
+                    checked = checked,
+                    onCheckedChange = { isChecked ->
+                        checked = isChecked
+                        SharedPreferencesUtil.putBoolean("use_hd_qr_code", isChecked)
+                    },
+                    label = {
+                        Text(text = "使用HD版登录接口", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    secondaryLabel = {
+                        Text(
+                            text = if (checked) "HD版风控更宽松" else "将使用传统网页端API",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                        .graphicsLayer {
+                            with(transformationSpec) {
+                                applyContainerTransformation(scrollProgress)
+                            }
+                        }
+                )
+            }
         }
     }
 }
@@ -296,7 +390,7 @@ fun SettingUIScreen(navController: NavController) {
 
     ScreenScaffold(
         scrollState = listState,
-        timeText = { com.qx.orbit.bili.presentation.component.WysTimeText() }
+        timeText = { WysTimeText() }
     ) { contentPadding ->
         TransformingLazyColumn(
             state = listState,
@@ -343,3 +437,107 @@ fun SettingUIScreen(navController: NavController) {
         }
     }
 }
+
+@Composable
+fun SettingLoginStatusScreen(navController: NavController) {
+    val listState = rememberTransformingLazyColumnState()
+    val transformationSpec = rememberTransformationSpec()
+    val context = LocalContext.current
+
+    ScreenScaffold(
+        scrollState = listState,
+        timeText = { WysTimeText() }
+    ) { contentPadding ->
+        TransformingLazyColumn(
+            state = listState,
+            contentPadding = contentPadding,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            item {
+                ListHeader(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                        .graphicsLayer {
+                            with(transformationSpec) {
+                                applyContainerTransformation(scrollProgress)
+                            }
+                        }
+                ) {
+                    Text(text = "登录状态管理")
+                }
+            }
+
+            item {
+                Button(
+                    onClick = {
+                        val cookieString = CookieManager.getCookie()
+                        if (cookieString.isEmpty()) {
+                            RoundToast.show(context, "当前未登录")
+                            return@Button
+                        }
+                        val items = cookieString.split("; ").filter { it.contains("=") }.map {
+                            val idx = it.indexOf("=")
+                            CookieExportItem(name = it.substring(0, idx), value = it.substring(idx + 1))
+                        }
+                        val json = Gson().toJson(CookieExportData(cookies = items))
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Bilibili Cookie", json))
+                        RoundToast.show(context, "Cookie 已复制到剪贴板")
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                        .graphicsLayer {
+                            with(transformationSpec) {
+                                applyContainerTransformation(scrollProgress)
+                            }
+                        }
+                ) {
+                    Text(text = "导出 Cookie", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+
+            item {
+                Button(
+                    onClick = {
+                        CookieManager.clearCookie()
+                        RoundToast.show(context, "已退出登录")
+                        val intent = Intent(context, MainActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                        .graphicsLayer {
+                            with(transformationSpec) {
+                                applyContainerTransformation(scrollProgress)
+                            }
+                        }
+                ) {
+                    Text(text = "退出登录", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
+}
+
+private data class CookieExportData(
+    val cookies: List<CookieExportItem>? = null,
+)
+
+private data class CookieExportItem(
+    val name: String = "",
+    val value: String = "",
+)

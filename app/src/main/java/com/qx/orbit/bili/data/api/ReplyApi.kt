@@ -10,7 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.Request
-import java.text.SimpleDateFormat
+import java.security.MessageDigest
+import com.qx.orbit.bili.util.formatBiliTime
 import java.util.*
 
 object ReplyApi {
@@ -88,7 +89,7 @@ object ReplyApi {
     )
 
     internal data class VipData(
-        @SerializedName("vipType") val vipType: Int = 0,
+        @SerializedName("vipStatus") val vipStatus: Int = 0,
         @SerializedName("nickname_color") val nickname_color: String? = null
     )
 
@@ -283,13 +284,13 @@ object ReplyApi {
             level = data.member?.level_info?.current_level ?: 0,
             official = data.member?.official_verify?.type ?: -1,
             officialDesc = data.member?.official_verify?.desc ?: "",
-            vip_role = data.member?.vip?.vipType ?: 0,
+            vip_role = data.member?.vip?.vipStatus ?: 0,
             vip_nickname_color = data.member?.vip?.nickname_color ?: "",
             is_senior_member = data.member?.user_senior?.status ?: 0
         )
         val pictures = data.content?.pictures?.filterNotNull()?.map { it.img_src ?: "" } ?: emptyList()
         val pubTime = if (data.ctime > 0) {
-            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(data.ctime * 1000)
+            formatBiliTime(data.ctime)
         } else ""
         val childList = data.replies?.filterNotNull()?.map { parseReply(it, isDynamic, oid) } ?: emptyList()
         return Reply(

@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.Request
 import org.json.JSONObject
+import androidx.core.graphics.createBitmap
 
 /** LoginApi —— Web / HD 扫码登录端点 + Cookie 导入。 */
 object LoginApi {
@@ -58,7 +59,7 @@ object LoginApi {
                     pixels[y * size + x] = if (bitMatrix.get(x, y)) Color.BLACK else Color.WHITE
                 }
             }
-            val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val bitmap = createBitmap(size, size)
             bitmap.setPixels(pixels, 0, size, 0, 0, size, size)
             bitmap
         } catch (e: Exception) {
@@ -178,7 +179,7 @@ object LoginApi {
         resp?.data
     }
 
-    private fun Map<String, String>.toFormBody(): okhttp3.FormBody {
+    private fun Map<String, String>.toFormBody(): FormBody {
         val builder = FormBody.Builder()
         forEach { (k, v) -> builder.add(k, v) }
         return builder.build()

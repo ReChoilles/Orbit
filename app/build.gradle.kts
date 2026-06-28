@@ -21,9 +21,12 @@ android {
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "src/main/keepRules/rules.keep"
+            )
         }
     }
     compileOptions {
@@ -41,13 +44,11 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.compose.foundation)
     implementation(libs.compose.material3)
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.wear.compose:compose-navigation:1.3.1")
-    implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation(libs.material3)
+    implementation(libs.compose.navigation)
     implementation(libs.compose.ui.tooling)
-    implementation("androidx.compose.material:material-icons-core:1.6.0")
+    implementation(libs.material.icons.extended)
     implementation(libs.core.splashscreen)
-    implementation(libs.play.services.wearable)
     implementation(libs.ui)
     implementation(libs.ui.graphics)
     implementation(libs.ui.tooling.preview)
@@ -60,38 +61,38 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
     implementation(libs.coroutines.core)
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.2")
+    implementation(libs.lifecycle.viewmodel.compose)
 
     // ijkplayer + DanmakuFlameMaster + brotlij
     implementation(project(":ijkplayer-java"))
     implementation(project(":DanmakuFlameMaster"))
 
     // Brotli decompression
-    implementation("org.brotli:dec:0.1.2")
+    implementation(libs.dec)
 
     // Protobuf (for danmaku parsing)
-    implementation("com.google.protobuf:protobuf-javalite:3.21.12")
+    implementation(libs.protobuf.javalite)
 
     // Jsoup (for HTML parsing in OpusApi, CookieRefreshApi)
-    implementation("org.jsoup:jsoup:1.17.2")
+    implementation(libs.jsoup)
 
 
     // Coil for Compose
-    implementation("io.coil-kt:coil-compose:2.6.0")
-    implementation("io.coil-kt:coil-gif:2.6.0")
+    implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
 
     // AppCompat + RecyclerView
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation(libs.appcompat)
+    implementation(libs.recyclerview)
 
     // ZXing (for QR code in LoginApi)
-    implementation("com.google.zxing:core:3.5.3")
+    implementation(libs.core)
 
     // PhotoView (for image viewer)
-    implementation("com.github.chrisbanes:PhotoView:2.3.0")
+    implementation(libs.photoview)
 
     // EventBus
-    implementation("org.greenrobot:eventbus:3.3.1")
+    implementation(libs.eventbus)
 
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)

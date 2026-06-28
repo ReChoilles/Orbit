@@ -57,6 +57,8 @@ import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
+import com.qx.orbit.bili.presentation.ui.components.UserAvatar
+import com.qx.orbit.bili.presentation.ui.components.UserNameText
 import androidx.compose.foundation.focusable
 import androidx.wear.compose.material3.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -665,25 +667,30 @@ fun UserInfoCard(
             secondaryContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         ),
         icon = {
-            AsyncImage(
-                model = item.avatar,
-                contentDescription = item.name,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(36.dp)),
-                contentScale = ContentScale.Crop
+            UserAvatar(
+                avatarUrl = item.avatar,
+                officialRole = item.official,
+                modifier = Modifier.size(36.dp),
+                isVip = item.vip_role > 0
             )
         },
         label = {
-            Text(
-                text = item.name,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.basicMarquee(),
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                UserNameText(
+                    name = item.name,
+                    isVip = item.vip_role > 0,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.basicMarquee().weight(1f, fill = false),
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                com.qx.orbit.bili.presentation.ui.components.LevelIcon(
+                    level = item.level,
+                    isSenior = item.is_senior_member == 1
+                )
+            }
         },
         secondaryLabel = {
             Text(

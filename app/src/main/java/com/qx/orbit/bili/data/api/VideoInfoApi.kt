@@ -10,6 +10,8 @@ import com.qx.orbit.bili.data.model.VideoInfo
 import com.qx.orbit.bili.data.model.Stats
 import com.qx.orbit.bili.data.remote.CookieManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import java.text.SimpleDateFormat
@@ -60,9 +62,10 @@ object VideoInfoApi {
     internal data class StatData(@SerializedName("view") val view: Int = 0, @SerializedName("like") val like: Int = 0, @SerializedName("coin") val coin: Int = 0, @SerializedName("reply") val reply: Int = 0, @SerializedName("danmaku") val danmaku: Int = 0, @SerializedName("favorite") val favorite: Int = 0)
     internal data class PageData(@SerializedName("part") val part: String? = null, @SerializedName("cid") val cid: Long = 0)
     internal data class RightsData(@SerializedName("is_cooperation") val is_cooperation: Int = 0, @SerializedName("is_stein_gate") val is_stein_gate: Int = 0, @SerializedName("is_360") val is_360: Int = 0)
-    internal data class StaffData(@SerializedName("mid") val mid: Long = 0, @SerializedName("title") val title: String? = null, @SerializedName("name") val name: String? = null, @SerializedName("face") val face: String? = null, @SerializedName("follower") val follower: Int = 0, @SerializedName("official") val official: OfficialData? = null)
-    internal data class OfficialData(@SerializedName("role") val role: Int = 0, @SerializedName("title") val title: String? = null)
-    internal data class OwnerData(@SerializedName("name") val name: String? = null, @SerializedName("face") val face: String? = null, @SerializedName("mid") val mid: Long = 0)
+    internal data class OfficialData(@SerializedName("role") val role: Int = -1, @SerializedName("title") val title: String? = null, @SerializedName("desc") val desc: String? = null, @SerializedName("type") val type: Int = -1)
+    internal data class VipData(@SerializedName("type") val type: Int = 0, @SerializedName("vipType") val vipType: Int = 0, @SerializedName("status") val status: Int = 0, @SerializedName("vipStatus") val vipStatus: Int = 0)
+    internal data class StaffData(@SerializedName("mid") val mid: Long = 0, @SerializedName("title") val title: String? = null, @SerializedName("name") val name: String? = null, @SerializedName("face") val face: String? = null, @SerializedName("follower") val follower: Int = 0, @SerializedName("official") val official: OfficialData? = null, @SerializedName("vip") val vip: VipData? = null, @SerializedName("official_verify") val official_verify: OfficialData? = null)
+    internal data class OwnerData(@SerializedName("name") val name: String? = null, @SerializedName("face") val face: String? = null, @SerializedName("mid") val mid: Long = 0, @SerializedName("vip") val vip: VipData? = null, @SerializedName("official_verify") val official_verify: OfficialData? = null)
     internal data class ArgueInfoData(@SerializedName("argue_msg") val argue_msg: String? = null)
     internal data class UgcSeasonData(@SerializedName("id") val id: Int = 0, @SerializedName("title") val title: String? = null, @SerializedName("intro") val intro: String? = null, @SerializedName("cover") val cover: String? = null, @SerializedName("mid") val mid: Long = 0, @SerializedName("stat") val stat: UgcStatData? = null, @SerializedName("sections") val sections: List<UgcSectionData>? = null)
     internal data class UgcStatData(@SerializedName("view") val view: Long = 0)
@@ -81,12 +84,12 @@ object VideoInfoApi {
         fetchAndBuildVideoInfo(url)
     }
 
-    private fun fetchAndBuildVideoInfo(url: String): VideoInfo? {
+    private suspend fun fetchAndBuildVideoInfo(url: String): VideoInfo? {
         val json = httpGet(url)
         val type = object : TypeToken<ApiResponse<VideoInfoData>>() {}.type
         val resp: ApiResponse<VideoInfoData>? = GsonConfig.gson.fromJson(json, type)
         if (resp == null || !resp.isSuccess || resp.data == null) return null
-        var videoInfo = buildVideoInfo(resp.data)
+        var videoInfo = buildVideoInfo(resp.data, fetchDetailedUser = true)
         
         // Fetch relation stats
         try {
@@ -140,7 +143,7 @@ object VideoInfoApi {
         else StringUtil.toWan((total as Number).toLong())
     }
 
-    internal fun analyzeUgcSeason(data: UgcSeasonData): BiliCollection {
+    internal suspend fun analyzeUgcSeason(data: UgcSeasonData): BiliCollection {
         return BiliCollection(
             id = data.id,
             title = data.title ?: "",
@@ -162,7 +165,7 @@ object VideoInfoApi {
                             cid = epData.cid,
                             title = epData.title ?: "",
                             bvid = epData.bvid ?: "",
-                            arc = epData.arc?.let { buildVideoInfo(it) }
+                            arc = epData.arc?.let { buildVideoInfo(it, fetchDetailedUser = false) }
                         )
                     } ?: emptyList()
                 )
@@ -170,7 +173,7 @@ object VideoInfoApi {
         )
     }
 
-    private fun buildVideoInfo(data: VideoInfoData): VideoInfo {
+    private suspend fun buildVideoInfo(data: VideoInfoData, fetchDetailedUser: Boolean): VideoInfo {
         val description: String
         val descAts: List<At>
 
@@ -219,15 +222,58 @@ object VideoInfoApi {
         val is360 = data.rights?.is_360 == 1
 
         val staff = if (isCooperation && !data.staff.isNullOrEmpty()) {
-            data.staff.filterNotNull().map { s ->
+            val list = data.staff.filterNotNull().map { s ->
+                val officialRole = if (s.official?.role != null && s.official.role != -1) s.official.role else {
+                    when (s.official_verify?.type) {
+                        0 -> 1
+                        1 -> 2
+                        else -> 0
+                    }
+                }
+                val vipStatus = if (s.vip?.status != null && s.vip.status != 0) s.vip.status else s.vip?.vipStatus ?: 0
                 UserInfo(
                     mid = s.mid, sign = s.title ?: "", name = s.name ?: "",
                     avatar = s.face ?: "", fans = s.follower, level = 6,
-                    official = s.official?.role ?: 0, officialDesc = s.official?.title ?: ""
+                    official = officialRole, officialDesc = s.official?.title ?: s.official?.desc ?: "",
+                    vip_role = vipStatus
                 )
             }
+            if (fetchDetailedUser) {
+                kotlinx.coroutines.coroutineScope {
+                    list.map { s ->
+                        async {
+                            try {
+                                val full = UserInfoApi.getUserInfo(s.mid)
+                                s.copy(
+                                    vip_role = full?.vip_role ?: s.vip_role,
+                                    official = full?.official ?: s.official,
+                                    officialDesc = full?.officialDesc ?: s.officialDesc
+                                )
+                            } catch (e: Exception) { s }
+                        }
+                    }.awaitAll()
+                }
+            } else list
         } else if (data.owner != null) {
-            listOf(UserInfo(name = data.owner.name ?: "", avatar = data.owner.face ?: "", mid = data.owner.mid, sign = "UP主"))
+            val vipStatus = if (data.owner.vip?.status != null && data.owner.vip.status != 0) data.owner.vip.status else data.owner.vip?.vipStatus ?: 0
+            val officialRole = when (data.owner.official_verify?.type) {
+                0 -> 1
+                1 -> 2
+                else -> data.owner.official_verify?.role ?: 0
+            }
+            val officialDesc = data.owner.official_verify?.title ?: data.owner.official_verify?.desc ?: ""
+            val ownerInfo = listOf(UserInfo(name = data.owner.name ?: "", avatar = data.owner.face ?: "", mid = data.owner.mid, sign = "UP主", vip_role = vipStatus, official = officialRole, officialDesc = officialDesc))
+            
+            if (fetchDetailedUser) {
+                try {
+                    val full = UserInfoApi.getUserInfo(data.owner.mid)
+                    listOf(ownerInfo[0].copy(
+                        vip_role = full?.vip_role ?: ownerInfo[0].vip_role,
+                        official = full?.official ?: ownerInfo[0].official,
+                        officialDesc = full?.officialDesc ?: ownerInfo[0].officialDesc
+                    ))
+                } catch (e: Exception) { ownerInfo }
+            } else ownerInfo
         } else emptyList()
 
         val epid = try {

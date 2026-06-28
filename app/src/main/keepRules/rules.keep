@@ -1,12 +1,34 @@
-# Add project specific R8 rules here.
-# AGP will combine all keep rule files in src/main/keepRules to pass to R8
-#
-# For more details, see
-#   https://d.android.com/r/tools/r8/keep-rules
+# ijkplayer
+-keep class tv.danmaku.ijk.media.player.** { *; }
+-dontwarn tv.danmaku.ijk.media.player.**
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# DanmakuFlameMaster + JNI
+-keep class master.flame.danmaku.** { *; }
+-keep class tv.cjump.jni.** { *; }
+-dontwarn master.flame.danmaku.**
+-dontwarn tv.cjump.jni.**
+
+# Brotli
+-keep class org.brotli.dec.** { *; }
+
+# Gson: keep ALL data classes used for serialization/deserialization
+-keepattributes Signature
+-keep class com.qx.orbit.bili.data.model.** { *; }
+-keep class com.qx.orbit.bili.data.model.**$* { *; }
+-keepclassmembers class com.qx.orbit.bili.data.api.** {
+    @com.google.gson.annotations.SerializedName <fields>;
+    <init>(...);
+}
+
+# Cookie classes (Kotlin file-level private data classes → top-level in bytecode)
+-keep class com.qx.orbit.bili.presentation.CookieImportData { *; }
+-keep class com.qx.orbit.bili.presentation.CookieImportData$* { *; }
+-keep class com.qx.orbit.bili.presentation.CookieImportItem { *; }
+-keep class com.qx.orbit.bili.presentation.settings.CookieExportData { *; }
+-keep class com.qx.orbit.bili.presentation.settings.CookieExportData$* { *; }
+-keep class com.qx.orbit.bili.presentation.settings.CookieExportItem { *; }
+
+# Retrofit interface methods
+-keepclassmembers,allowobfuscation interface com.qx.orbit.bili.data.api.BiliApiService {
+    @retrofit2.http.* <methods>;
+}

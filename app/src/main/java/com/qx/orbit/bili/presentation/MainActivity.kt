@@ -11,6 +11,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -61,6 +62,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,7 +70,6 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
@@ -82,6 +83,8 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
+import com.qx.orbit.bili.presentation.ui.components.UserAvatar
+import com.qx.orbit.bili.presentation.ui.components.UserNameText
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
@@ -102,17 +105,23 @@ import com.qx.orbit.bili.presentation.settings.SettingUIScreen
 import com.qx.orbit.bili.presentation.settings.SettingsScreen
 import com.qx.orbit.bili.presentation.theme.OrbitTheme
 import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
+import com.qx.orbit.bili.presentation.ui.components.LevelIcon
 import com.qx.orbit.bili.presentation.viewmodel.MainViewModel
 import com.qx.orbit.bili.presentation.viewmodel.SearchViewModel
 import com.qx.orbit.bili.presentation.viewmodel.TabMode
-import master.flame.danmaku.R
+import com.qx.orbit.bili.util.SharedPreferencesUtil
+import com.qx.orbit.bili.presentation.viewmodel.ReplyDetailViewModel
+import com.qx.orbit.bili.presentation.viewmodel.UserSpaceViewModel
+import com.qx.orbit.bili.presentation.settings.SettingPreferenceScreen
+import com.qx.orbit.bili.presentation.settings.SettingLoginStatusScreen
+import com.qx.orbit.bili.R
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CookieManager.init(this)
-        com.qx.orbit.bili.util.SharedPreferencesUtil.init(this)
+        SharedPreferencesUtil.init(this)
         setContent {
             WearApp()
         }
@@ -123,7 +132,7 @@ class MainActivity : ComponentActivity() {
 fun WearApp(viewModel: MainViewModel = viewModel()) {
     OrbitTheme {
         val navController = rememberSwipeDismissableNavController()
-        val currentBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentBackStackEntry by navController.currentBackStackEntryFlow.collectAsState(initial = navController.currentBackStackEntry)
         val currentRoute = currentBackStackEntry?.destination?.route
         val isSwipeEnabled = currentRoute?.startsWith("player/") != true
         
@@ -183,7 +192,7 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
                 ) { backStackEntry ->
                     val json = backStackEntry.arguments?.getString("replyJson") ?: ""
                     val reply = Gson().fromJson(json, Reply::class.java)
-                    val replyDetailViewModel: com.qx.orbit.bili.presentation.viewmodel.ReplyDetailViewModel = viewModel()
+                    val replyDetailViewModel: ReplyDetailViewModel = viewModel()
                     if (reply != null) {
                         ReplyDetailScreen(reply = reply, viewModel = replyDetailViewModel, navController = navController)
                     }
@@ -214,7 +223,7 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
                 )
             ) { backStackEntry ->
                 val mid = backStackEntry.arguments?.getLong("mid") ?: 0L
-                val userSpaceViewModel: com.qx.orbit.bili.presentation.viewmodel.UserSpaceViewModel = viewModel()
+                val userSpaceViewModel: UserSpaceViewModel = viewModel()
                 UserSpaceScreen(mid = mid, viewModel = userSpaceViewModel, navController = navController)
             }
             composable("settings_main") {
@@ -225,6 +234,12 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
             }
             composable("settings_ui") {
                 SettingUIScreen(navController = navController)
+            }
+            composable("settings_preference") {
+                SettingPreferenceScreen(navController = navController)
+            }
+            composable("settings_login_status") {
+                SettingLoginStatusScreen(navController = navController)
             }
         }
     }
@@ -328,26 +343,41 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                         }
                                 ) {
                                     if (navInfo != null && navInfo!!.isLogin) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(CircleShape)
-                                                .height(48.dp)
-                                                .background(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.shapes.medium)
-                                                .clickable {
-                                                    showTabMenu = false
-                                                    navController.navigate("user_space/${navInfo!!.mid}")
-                                                },
-                                            verticalAlignment = Alignment.CenterVertically
+                                        Button(
+                                            onClick = {
+                                                showTabMenu = false
+                                                navController.navigate("user_space/${navInfo!!.mid}")
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                                contentColor = MaterialTheme.colorScheme.onSurface
+                                            ),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentPadding = PaddingValues(start = 8.dp, top = 8.dp, bottom = 8.dp, end = 14.dp)
                                         ) {
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            AsyncImage(
-                                                model = navInfo!!.face,
-                                                contentDescription = "Avatar",
-                                                modifier = Modifier.size(36.dp).clip(CircleShape)
+                                            UserAvatar(
+                                                avatarUrl = navInfo!!.face ?: "",
+                                                officialRole = 0,
+                                                modifier = Modifier.size(36.dp),
+                                                isVip = (navInfo!!.vip?.vipType ?: 0) > 0
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Text(navInfo!!.uname ?: "", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                                            Column(verticalArrangement = Arrangement.Center) {
+                                                UserNameText(
+                                                    name = navInfo!!.uname ?: "",
+                                                    isVip = (navInfo!!.vip?.vipType ?: 0) > 0,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                val level = navInfo!!.level_info?.current_level ?: 0
+                                                LevelIcon(
+                                                    level = level,
+                                                    isSenior = navInfo!!.is_senior_member == 1,
+                                                    modifier = Modifier.height(16.dp)
+                                                )
+                                            }
                                         }
                                     } else {
                                         Button(
@@ -545,7 +575,7 @@ fun RecommendScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Image(
-                                    painter = painterResource(com.qx.orbit.bili.R.drawable.bili_2233_fail),
+                                    painter = painterResource(R.drawable.bili_2233_fail),
                                     contentDescription = "Error",
                                     modifier = Modifier.fillMaxWidth()
                                 )

@@ -51,7 +51,7 @@ object FollowApi {
                 fans = item.follower,
                 official = item.official_verify?.type ?: -1,
                 officialDesc = item.official_verify?.desc ?: "",
-                vip_role = item.vip?.vipType ?: 0,
+                vip_role = item.vip?.vipStatus ?: 0,
                 vip_nickname_color = item.vip?.nickname_color ?: ""
             )
         }
@@ -76,7 +76,7 @@ object FollowApi {
                 fans = item.follower,
                 official = item.official_verify?.type ?: -1,
                 officialDesc = item.official_verify?.desc ?: "",
-                vip_role = item.vip?.vipType ?: 0,
+                vip_role = item.vip?.vipStatus ?: 0,
                 vip_nickname_color = item.vip?.nickname_color ?: ""
             )
         }
@@ -114,7 +114,7 @@ object FollowApi {
                 fans = item.follower,
                 official = item.official_verify?.type ?: -1,
                 officialDesc = item.official_verify?.desc ?: "",
-                vip_role = item.vip?.vipType ?: 0,
+                vip_role = item.vip?.vipStatus ?: 0,
                 vip_nickname_color = item.vip?.nickname_color ?: ""
             )
         }

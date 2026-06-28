@@ -6,7 +6,10 @@ import com.qx.orbit.bili.data.remote.HttpClient
 import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import org.json.JSONArray
@@ -24,13 +27,18 @@ object SearchApi {
         @SerializedName("cid") val cid: Long = 0
     )
 
+    internal data class OfficialData(@SerializedName("type") val type: Int = -1, @SerializedName("desc") val desc: String? = null)
+    internal data class VipData(@SerializedName("vipType") val vipType: Int = 0, @SerializedName("type") val type: Int = 0)
+
     internal data class SearchUserItem(
         @SerializedName("mid") val mid: Long = 0,
         @SerializedName("uname") val uname: String? = null,
         @SerializedName("usign") val usign: String? = null,
         @SerializedName("fans") val fans: Int = 0,
         @SerializedName("level") val level: Int = 0,
-        @SerializedName("upic") val upic: String? = null
+        @SerializedName("upic") val upic: String? = null,
+        @SerializedName("official_verify") val official_verify: OfficialData? = null,
+        @SerializedName("vip") val vip: VipData? = null
     )
 
     internal data class SearchArticleItem(
@@ -132,20 +140,34 @@ object SearchApi {
 
     suspend fun getUsersFromSearchResult(input: JSONArray?): List<UserInfo> = withContext(Dispatchers.IO) {
         if (input == null) return@withContext emptyList()
-        val result = mutableListOf<UserInfo>()
+        val deferreds = mutableListOf<Deferred<UserInfo>>()
         for (i in 0 until input.length()) {
             val obj = input.optJSONObject(i) ?: continue
             val item = GsonConfig.gson.fromJson(obj.toString(), SearchUserItem::class.java) ?: continue
-            result.add(UserInfo(
-                mid = item.mid,
-                name = item.uname ?: "",
-                sign = item.usign ?: "",
-                fans = item.fans,
-                level = item.level,
-                avatar = fixCoverUrl(item.upic ?: "")
-            ))
+            deferreds.add(async {
+                val fullInfo = try {
+                    UserInfoApi.getUserInfo(item.mid)
+                } catch (e: Exception) { null }
+                
+                val vipStatus = fullInfo?.vip_role ?: 0
+                val officialType = fullInfo?.official ?: -1
+                val officialDesc = fullInfo?.officialDesc ?: ""
+
+                UserInfo(
+                    mid = item.mid,
+                    name = item.uname ?: "",
+                    sign = item.usign ?: "",
+                    fans = item.fans,
+                    level = item.level,
+                    avatar = fixCoverUrl(item.upic ?: ""),
+                    official = officialType,
+                    officialDesc = officialDesc,
+                    vip_role = vipStatus,
+                    is_senior_member = fullInfo?.is_senior_member ?: 0
+                )
+            })
         }
-        result
+        deferreds.awaitAll()
     }
 
     suspend fun getArticlesFromSearchResult(input: JSONArray?): List<ArticleCard> = withContext(Dispatchers.IO) {

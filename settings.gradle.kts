@@ -10,6 +10,13 @@ pluginManagement {
                 includeGroupByRegex("androidx.*")
             }
         }
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
         maven { url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/") }
         google {
             content {
@@ -30,9 +37,30 @@ plugins {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
-        maven { url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/") }
+        maven {
+            url = uri("https://maven.aliyun.com/repository/google")
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                excludeGroupByRegex("androidx\\..*")
+            }
+        }
+        maven {
+            url = uri("https://maven.aliyun.com/repository/public")
+            content {
+                excludeGroupByRegex("androidx\\..*")
+                excludeGroupByRegex("com\\.android.*")
+                excludeGroupByRegex("com\\.google.*")
+            }
+        }
+        maven {
+            url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/")
+            content {
+                excludeGroupByRegex("androidx\\..*")
+                excludeGroupByRegex("com\\.android.*")
+                excludeGroupByRegex("com\\.google.*")
+            }
+        }
         google()
         mavenCentral()
         maven { url = uri("https://www.jitpack.io") }

@@ -49,6 +49,10 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.input.rotary.onPreRotaryScrollEvent
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
 import kotlin.math.max
 
 @Composable
@@ -62,10 +66,17 @@ fun WriteReplyScreen(
     var text by remember { mutableStateOf(TextFieldValue("")) }
     var isSending by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    var isFocused by remember { mutableStateOf(false) }
 
     Dialog(
         visible = visible,
-        onDismissRequest = onClose,
+        onDismissRequest = {
+            if (isFocused) {
+                focusManager.clearFocus()
+            } else {
+                onClose()
+            }
+        },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         val context = LocalContext.current
@@ -147,10 +158,18 @@ fun WriteReplyScreen(
                                     focusedBorderColor = MaterialTheme.colorScheme.background,
                                     unfocusedBorderColor = MaterialTheme.colorScheme.background
                                 ),
-                                modifier = Modifier.onPreRotaryScrollEvent {
-                                    focusManager.clearFocus()
-                                    false
-                                },
+                                modifier = Modifier
+                                    .onFocusChanged { isFocused = it.isFocused }
+                                    .onPreRotaryScrollEvent {
+                                        focusManager.clearFocus()
+                                        false
+                                    },
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(
+                                    onDone = {
+                                        focusManager.clearFocus()
+                                    }
+                                ),
                                 visualTransformation = { annotatedString ->
                                     val expandedText = buildString {
                                         for (char in annotatedString.text) {

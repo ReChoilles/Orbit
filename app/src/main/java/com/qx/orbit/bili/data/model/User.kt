@@ -11,6 +11,7 @@ data class UserInfo(
     val level: Int = 0,
     val following: Int = 0,
     val followed: Boolean = false,
+    val title: String = "",
     val notice: String = "",
     val official: Int = 0,
     val officialDesc: String = "",

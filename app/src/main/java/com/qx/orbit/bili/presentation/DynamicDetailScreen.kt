@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,13 +34,19 @@ import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
 import androidx.wear.compose.foundation.rotary.rotaryScrollable
 import androidx.wear.compose.material3.*
+import com.qx.orbit.bili.presentation.ui.components.UserAvatar
+import com.qx.orbit.bili.presentation.ui.components.UserNameText
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.qx.orbit.bili.R
+import com.qx.orbit.bili.data.model.Dynamic
+import com.qx.orbit.bili.data.model.Reply
 import com.qx.orbit.bili.presentation.theme.BiliPink
 import com.qx.orbit.bili.presentation.viewmodel.DynamicDetailViewModel
+import com.qx.orbit.bili.util.formatCount
+import androidx.compose.ui.text.style.TextAlign
 import kotlinx.coroutines.launch
 
 @Composable
@@ -110,17 +117,17 @@ fun DynamicDetailScreen(
                                         item.userInfo?.mid?.let { mid -> navController.navigate("user_space/$mid") }
                                     }
                                 ) {
-                                    AsyncImage(
-                                        model = item.userInfo?.avatar,
-                                        contentDescription = "Avatar",
-                                        contentScale = ContentScale.Crop,
-                                        error = painterResource(R.drawable.akari),
-                                        modifier = Modifier.size(32.dp).clip(CircleShape)
+                                    UserAvatar(
+                                        avatarUrl = item.userInfo?.avatar ?: "",
+                                        officialRole = item.userInfo?.official ?: 0,
+                                        modifier = Modifier.size(32.dp),
+                                        isVip = (item.userInfo?.vip_role ?: 0) > 0
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = item.userInfo?.name ?: "Unknown",
+                                        UserNameText(
+                                            name = item.userInfo?.name ?: "Unknown",
+                                            isVip = (item.userInfo?.vip_role ?: 0) > 0,
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,
@@ -135,13 +142,7 @@ fun DynamicDetailScreen(
                                     }
                                 }
 
-                                Text(
-                                    text = item.pubTime,
-                                    fontSize = 11.sp,
-                                    color = Color.Gray,
-                                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.End
-                                )
+
 
                                 if (item.title.isNotEmpty()) {
                                     Text(
@@ -224,6 +225,46 @@ fun DynamicDetailScreen(
                                 
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.clickable { /* Share */ }.padding(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Share,
+                                            contentDescription = "Share",
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        val shareCount = item.stats?.share ?: 0
+                                        Text(
+                                            text = formatCount(shareCount),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.clickable { /* TODO: Open send comment dialog */ }.padding(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Edit,
+                                            contentDescription = "Reply",
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        val replyCount = item.stats?.reply ?: 0
+                                        Text(
+                                            text = formatCount(replyCount),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
                                     val isLiked = item.stats?.liked == true
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -238,32 +279,19 @@ fun DynamicDetailScreen(
                                         Spacer(modifier = Modifier.width(4.dp))
                                         val likeCount = item.stats?.like ?: 0
                                         Text(
-                                            text = if (likeCount > 0) com.qx.orbit.bili.util.formatCount(likeCount) else "点赞",
+                                            text = formatCount(likeCount),
                                             style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
                                             color = if (isLiked) BiliPink else MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 10.sp
                                         )
                                     }
                                     Spacer(modifier = Modifier.weight(1f))
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.clickable { /* TODO: Open send comment dialog */ }.padding(4.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Edit,
-                                            contentDescription = "Reply",
-                                            modifier = Modifier.size(14.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        val replyCount = item.stats?.reply ?: 0
-                                        Text(
-                                            text = if (replyCount > 0) com.qx.orbit.bili.util.formatCount(replyCount) else "评论",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontSize = 10.sp
-                                        )
-                                    }
+                                    Text(
+                                        text = item.pubTime,
+                                        fontSize = 10.sp,
+                                        color = Color.Gray,
+                                        textAlign = TextAlign.End
+                                    )
                                 }
                             }
                         }

@@ -1,30 +1,51 @@
 package com.qx.orbit.bili.presentation
 
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.text.appendInlineContent
-import androidx.compose.foundation.text.InlineTextContent
-import androidx.compose.ui.text.Placeholder
-import androidx.compose.ui.text.PlaceholderVerticalAlign
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
-
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.*
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
+import androidx.core.net.toUri
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,7 +57,19 @@ import androidx.wear.compose.foundation.pager.HorizontalPager
 import androidx.wear.compose.foundation.pager.rememberPagerState
 import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
 import androidx.wear.compose.foundation.rotary.rotaryScrollable
-import androidx.wear.compose.material3.*
+import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.ButtonGroup
+import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.wear.compose.material3.FilledIconButton
+import androidx.wear.compose.material3.HorizontalPageIndicator
+import androidx.wear.compose.material3.Icon
+import androidx.wear.compose.material3.IconButtonDefaults
+import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.ScreenScaffold
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import coil.compose.AsyncImage
@@ -45,13 +78,11 @@ import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.Opus
 import com.qx.orbit.bili.data.model.OpusParagraph
 import com.qx.orbit.bili.presentation.theme.BiliPink
+import com.qx.orbit.bili.presentation.ui.components.UserAvatar
+import com.qx.orbit.bili.presentation.ui.components.UserNameText
 import com.qx.orbit.bili.presentation.viewmodel.OpusDetailViewModel
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.foundation.text.ClickableText
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.res.painterResource
-import kotlinx.coroutines.launch
+import com.qx.orbit.bili.util.formatCount
+import androidx.core.graphics.toColorInt
 
 @Composable
 fun OpusDetailScreen(
@@ -136,7 +167,7 @@ fun OpusContentPage(
                     text = item.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                 )
             }
@@ -155,23 +186,19 @@ fun OpusContentPage(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                val avatarUrl = item.upInfo?.avatar ?: ""
-                val fixedAvatarUrl = when {
-                    avatarUrl.startsWith("//") -> "https:$avatarUrl"
-                    avatarUrl.startsWith("http://") -> avatarUrl.replaceFirst("http://", "https://")
-                    else -> avatarUrl
-                }
-                AsyncImage(
-                    model = ImageRequest.Builder(context).data(fixedAvatarUrl).crossfade(true).build(),
-                    contentDescription = "Avatar",
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(16.dp)),
-                    contentScale = ContentScale.Crop
+                UserAvatar(
+                    avatarUrl = item.upInfo?.avatar ?: "",
+                    officialRole = item.upInfo?.official ?: 0,
+                    modifier = Modifier.size(32.dp),
+                    isVip = (item.upInfo?.vip_role ?: 0) > 0
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
-                    Text(text = item.upInfo?.name ?: "", style = MaterialTheme.typography.titleSmall)
+                    UserNameText(
+                        name = item.upInfo?.name ?: "",
+                        isVip = (item.upInfo?.vip_role ?: 0) > 0,
+                        style = MaterialTheme.typography.titleSmall
+                    )
                     Text(text = item.pubTime, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                 }
             }
@@ -205,13 +232,13 @@ fun OpusContentPage(
             item {
                 when (paragraph.type) {
                     OpusParagraph.TYPE_TEXT, OpusParagraph.TYPE_HEADING -> {
-                        val inlineContentMap = mutableMapOf<String, androidx.compose.foundation.text.InlineTextContent>()
+                        val inlineContentMap = mutableMapOf<String, InlineTextContent>()
                         val annotatedStr = buildAnnotatedString {
                             paragraph.textNodes.forEach { node ->
                                 val weight = if (node.bold || paragraph.type == OpusParagraph.TYPE_HEADING) FontWeight.Bold else FontWeight.Normal
                                 val fontStyle = if (node.italic) FontStyle.Italic else FontStyle.Normal
                                 val textColor = if (node.color != null) {
-                                    try { Color(android.graphics.Color.parseColor(node.color)) } catch (e: Exception) { Color.Unspecified }
+                                    try { Color(node.color.toColorInt()) } catch (e: Exception) { Color.Unspecified }
                                 } else Color.Unspecified
                                 
                                 val start = length
@@ -260,7 +287,10 @@ fun OpusContentPage(
                                     if (pos >= 0) {
                                         val urlAnn = annotatedStr.getStringAnnotations("URL", pos, pos).firstOrNull()
                                         if (urlAnn != null) {
-                                            // TODO: handle url jump
+                                            try {
+                                                val intent = Intent(Intent.ACTION_VIEW, urlAnn.item.toUri())
+                                                context.startActivity(intent)
+                                            } catch (_: Exception) {}
                                         }
                                         val userAnn = annotatedStr.getStringAnnotations("USER", pos, pos).firstOrNull()
                                         if (userAnn != null) {
@@ -317,7 +347,7 @@ fun OpusContentPage(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(painterResource(R.drawable.icon_like_0), null)
                         Text(
-                            text = com.qx.orbit.bili.util.formatCount(item.stats?.like ?: 0),
+                            text = formatCount(item.stats?.like ?: 0),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp)
                         )
                     }

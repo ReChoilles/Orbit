@@ -250,15 +250,18 @@ class VideoDetailViewModel : ViewModel() {
                     type = ReplyApi.REPLY_TYPE_VIDEO
                 )
                 if (code == 0) {
+                    if (reply != null) {
+                        _replies.value = listOf(reply) + _replies.value
+                    } else {
+                        loadReplies(reset = true)
+                    }
                     onSuccess()
-                    // Refetch replies to show the new comment
-                    loadReplies(reset = true)
                 } else {
-                    onError("发送失败 (code: $code)")
+                    onError("发送失败 (错误码: $code)")
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                onError(e.localizedMessage ?: "网络错误")
+                onError(e.localizedMessage ?: "网络异常，发送失败")
             }
         }
     }

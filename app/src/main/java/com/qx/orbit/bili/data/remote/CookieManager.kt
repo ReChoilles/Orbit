@@ -35,4 +35,8 @@ object CookieManager {
         cookies[key] = value
         setCookie(cookies.entries.joinToString("; ") { "${it.key}=${it.value}" })
     }
+
+    fun clearCookie() {
+        prefs.edit().remove("cookie").remove("mid").apply()
+    }
 }

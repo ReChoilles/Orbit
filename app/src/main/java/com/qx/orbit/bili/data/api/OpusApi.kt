@@ -170,6 +170,18 @@ object OpusApi {
         }
         paragraphs = parsedParagraphs.toTypedArray()
 
+        val officialVerify = authorModule.optJSONObject("official_verify")
+        val rawOfficial = officialVerify?.optInt("type", -1) ?: -1
+        val officialType = when (rawOfficial) {
+            0 -> 1
+            1 -> 2
+            else -> 0
+        }
+        val officialDesc = officialVerify?.optString("desc", "") ?: ""
+        
+        val vipObj = authorModule.optJSONObject("vip")
+        val vipStatus = if (vipObj != null && vipObj.has("status")) vipObj.optInt("status", 0) else vipObj?.optInt("vipStatus", 0) ?: 0
+
         return Opus(
             id = dynId,
             type = type,
@@ -179,7 +191,7 @@ object OpusApi {
             cover = cover,
             content = content,
             pubTime = pubTime,
-            upInfo = UserInfo(mid = mid, name = name, avatar = face),
+            upInfo = UserInfo(mid = mid, name = name, avatar = face, official = officialType, officialDesc = officialDesc, vip_role = vipStatus),
             stats = stats,
             topImages = topImages,
             paragraphs = paragraphs,

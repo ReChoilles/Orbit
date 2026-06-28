@@ -17,6 +17,12 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.qx.orbit.bili.presentation.ui.components.UserAvatar
+import com.qx.orbit.bili.presentation.ui.components.UserNameText
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -59,6 +65,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AccessTimeFilled
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.runtime.mutableIntStateOf
 import com.qx.orbit.bili.data.api.UserInfoApi
 import androidx.compose.ui.Alignment
@@ -125,12 +137,15 @@ import com.qx.orbit.bili.presentation.viewmodel.VideoDetailViewModel
 import com.qx.orbit.bili.util.LinkResolver
 import com.qx.orbit.bili.util.SharedPreferencesUtil
 import com.qx.orbit.bili.util.formatCount
+import androidx.compose.ui.text.style.TextAlign
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import androidx.core.net.toUri
 import com.qx.orbit.bili.presentation.theme.BiliPink
+import com.qx.orbit.bili.presentation.ui.components.RoundToast
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -138,6 +153,8 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
     LaunchedEffect(bvid, aid) {
         viewModel.loadData(bvid, aid)
     }
+    
+    val context = LocalContext.current
 
     val videoInfo by viewModel.videoInfo.collectAsState()
     val tags by viewModel.tags.collectAsState()
@@ -268,6 +285,7 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                 },
                 onError = { error ->
                     showWriteReply = false
+                    RoundToast.show(context, error)
                 }
             )
         },
@@ -373,7 +391,7 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                         dragYDpAnim.animateTo(-30f, tween(150))
                                         viewModel.doCoin(selectedCoinIndex + 1)
                                         dragYDpAnim.animateTo(0f, tween(150))
-                                        delay(100)
+                                        delay(100.milliseconds)
                                         showCoinDialog = false
                                     }
                                 }
@@ -398,7 +416,7 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                                 dragYDpAnim.snapTo(-30f)
                                                 viewModel.doCoin(selectedCoinIndex + 1)
                                                 dragYDpAnim.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
-                                                delay(100)
+                                                delay(100.milliseconds)
                                                 showCoinDialog = false
                                             } else if (nextY > -30f) {
                                                 dragYDpAnim.snapTo(nextY)
@@ -491,10 +509,12 @@ fun VideoInfoPage(
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
     val isRound = LocalConfiguration.current.isScreenRound
+    var isDescExpanded by remember { mutableStateOf(false) }
 
     ScreenScaffold(scrollState = listState, modifier = Modifier.focusRequester(focusRequester)) { contentPadding ->
         TransformingLazyColumn(
             state = listState,
+            horizontalAlignment = Alignment.CenterHorizontally,
             contentPadding = contentPadding
         ) {
             item {
@@ -531,7 +551,6 @@ fun VideoInfoPage(
                 
                 // 2. Title (slightly larger)
                 item {
-                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = videoInfo.title,
                         style = MaterialTheme.typography.titleSmall,
@@ -552,12 +571,11 @@ fun VideoInfoPage(
                 
                 // 3. UP Info Capsule
                 item {
-                    val upInfo = videoInfo.staff.firstOrNull()
-                    if (upInfo != null) {
+                    if (videoInfo.staff.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier
-                                .fillMaxWidth()
                                 .transformedHeight(this, transformationSpec)
                                 .graphicsLayer {
                                     if (isRound) {
@@ -566,51 +584,43 @@ fun VideoInfoPage(
                                         }
                                     }
                                 }
-                                .clip(RoundedCornerShape(50))
-                                .background(MaterialTheme.colorScheme.surfaceContainer)
-                                .clickable(onClick = { onUpClick(upInfo.mid) })
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxWidth()
                         ) {
-                            if (upInfo.avatar.isNotEmpty()) {
-                                AsyncImage(
-                                    model = upInfo.avatar,
-                                    contentDescription = "Avatar",
-                                    contentScale = ContentScale.Crop,
+                            items(videoInfo.staff) { upInfo ->
+                                Row(
                                     modifier = Modifier
-                                        .size(28.dp)
+                                        .then(if (videoInfo.staff.size == 1) Modifier.fillParentMaxWidth() else Modifier)
+                                        .height(48.dp)
                                         .clip(RoundedCornerShape(50))
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(28.dp)
-                                        .clip(RoundedCornerShape(50))
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                                    contentAlignment = Alignment.Center
+                                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                                        .clickable(onClick = { onUpClick(upInfo.mid) })
+                                        .padding(start = 6.dp, end = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Person,
-                                        contentDescription = "Avatar",
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    UserAvatar(
+                                        avatarUrl = upInfo.avatar,
+                                        officialRole = upInfo.official,
+                                        modifier = Modifier.size(36.dp),
+                                        isVip = upInfo.vip_role > 0
                                     )
+                                    
+                                    Spacer(Modifier.width(8.dp))
+                                    
+                                    val roleText = upInfo.sign.ifEmpty { "参演" }
+                                    Column(verticalArrangement = Arrangement.Center) {
+                                        UserNameText(
+                                            name = upInfo.name,
+                                            isVip = upInfo.vip_role > 0,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = roleText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                 }
-                            }
-                            
-                            Spacer(Modifier.width(8.dp))
-                            
-                            Column {
-                                Text(
-                                    text = "UP主",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = upInfo.name,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
                             }
                         }
                     }
@@ -633,9 +643,9 @@ fun VideoInfoPage(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Filled.PlayArrow,
+                                imageVector = Icons.Filled.PlayCircleOutline,
                                 contentDescription = "Views",
-                                modifier = Modifier.size(12.dp),
+                                modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                             )
                             Spacer(modifier = Modifier.width(2.dp))
@@ -643,13 +653,12 @@ fun VideoInfoPage(
                                 text = formatCount(videoInfo.stats?.view ?: 0),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                                fontSize = 10.sp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(
                                 painterResource(R.drawable.ic_danmaku),
                                 contentDescription = "Danmaku",
-                                modifier = Modifier.height(12.dp),
+                                modifier = Modifier.height(14.dp),
                                 tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                             )
                             Spacer(modifier = Modifier.width(2.dp))
@@ -657,29 +666,76 @@ fun VideoInfoPage(
                                 text = formatCount(videoInfo.stats?.danmaku ?: 0),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                                fontSize = 10.sp
                             )
                         }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "${videoInfo.timeDesc} · ${videoInfo.bvid}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                            fontSize = 10.sp
-                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically){
+                            Icon(
+                                imageVector = Icons.Filled.AccessTime,
+                                contentDescription = "Views",
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = videoInfo.timeDesc,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically){
+                            Icon(
+                                imageVector = Icons.Filled.Movie,
+                                contentDescription = "Views",
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = videoInfo.bvid,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            )
+                        }
+
+
                     }
                 }
                 
-                // 5. Tags
+                // 5. Tags (Merged into Description)
+                
+                // 5.5 Description
                 item {
-                    if (tags.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                    if (videoInfo.description.isNotEmpty() || tags.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        val fullDesc = buildAnnotatedString {
+                            if (videoInfo.description.isNotEmpty()) {
+                                append(videoInfo.description)
+                            }
+                            if (tags.isNotEmpty()) {
+                                if (videoInfo.description.isNotEmpty()) {
+                                    append("\n")
+                                }
+                                val formattedTags = tags.split("/").joinToString(" ") { "#${it.trim()}" }
+                                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                                    append(formattedTags)
+                                }
+                            }
+                        }
+                        
                         Text(
-                            text = tags,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                            fontSize = 10.sp,
-                            maxLines = 1,
+                            text = fullDesc,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            maxLines = if (isDescExpanded) Int.MAX_VALUE else 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
                                 .transformedHeight(this, transformationSpec)
@@ -691,13 +747,13 @@ fun VideoInfoPage(
                                     }
                                 }
                                 .fillMaxWidth()
+                                .clickable { isDescExpanded = !isDescExpanded }
                         )
                     }
                 }
-                
+                item { Spacer(modifier = Modifier.height(4.dp)) }
                 // 6. Play Button
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = onPlayClick,
                         modifier = Modifier
@@ -710,6 +766,7 @@ fun VideoInfoPage(
                                 }
                             }
                             .fillMaxWidth(),
+                        icon = {Icon(imageVector = Icons.Filled.PlayCircleOutline, contentDescription = null)},
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Text("播放视频")
@@ -838,6 +895,7 @@ fun VideoCommentsPage(
                     onClick = onSendCommentClick,
                     modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
                     transformation = SurfaceTransformation(transformationSpec),
+                    icon = {Icon(imageVector = Icons.Filled.Edit, contentDescription = null)},
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text("发布评论", style = MaterialTheme.typography.labelMedium)
@@ -910,22 +968,16 @@ fun ReplyCard(
                     }
                 }
             ) {
-                val avatarUrl = reply.sender?.avatar ?: ""
-                val fixedAvatarUrl = when {
-                    avatarUrl.startsWith("//") -> "https:$avatarUrl"
-                    avatarUrl.startsWith("http://") -> avatarUrl.replaceFirst("http://", "https://")
-                    else -> avatarUrl
-                }
-                AsyncImage(
-                    model = fixedAvatarUrl,
-                    contentDescription = "Avatar",
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(R.drawable.akari),
-                    modifier = Modifier.size(24.dp).clip(CircleShape)
+                UserAvatar(
+                    avatarUrl = reply.sender?.avatar ?: "",
+                    officialRole = reply.sender?.official ?: 0,
+                    modifier = Modifier.size(24.dp),
+                    isVip = (reply.sender?.vip_role ?: 0) > 0
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = reply.sender?.name ?: "",
+                UserNameText(
+                    name = reply.sender?.name ?: "",
+                    isVip = (reply.sender?.vip_role ?: 0) > 0,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1001,6 +1053,14 @@ fun ReplyCard(
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = reply.pubTime,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp,
+                modifier = Modifier.fillMaxWidth().padding(end = 4.dp, bottom = 4.dp),
+                textAlign = TextAlign.End
+            )
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 // Like Button
                 val activeColor = BiliPink
@@ -1164,7 +1224,7 @@ fun parseRichText(
                             if (mid != null) {
                                 append(part.substring(lastIdx, match.range.first))
                                 pushStringAnnotation(tag = "USER", annotation = mid.toString())
-                                withStyle(style = SpanStyle(color = BiliPink)) {
+                                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary)) {
                                     append(token)
                                 }
                                 pop()
