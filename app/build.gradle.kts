@@ -37,6 +37,27 @@ android {
     buildFeatures {
         compose = true
     }
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86")
+            isUniversalApk = true
+        }
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            val ver = output.versionName.get()
+            val abi = output.filters
+                .filter { it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI }
+                .map { it.identifier }
+                .singleOrNull() ?: "universal"
+            output.outputFileName.set("Orbit-${ver}-${abi}-release.apk")
+        }
+    }
 }
 
 dependencies {
@@ -75,7 +96,6 @@ dependencies {
 
     // Jsoup (for HTML parsing in OpusApi, CookieRefreshApi)
     implementation(libs.jsoup)
-
 
     // Coil for Compose
     implementation(libs.coil.compose)

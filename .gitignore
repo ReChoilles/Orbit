@@ -12,3 +12,4 @@ app/build/
 app/release/
 *.hprof
 /.agents/AGENTS.md
+/.kotlin/
