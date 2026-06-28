@@ -8,9 +8,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Favorite
@@ -48,13 +51,16 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -99,6 +105,7 @@ import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
 import com.qx.orbit.bili.presentation.viewmodel.MainViewModel
 import com.qx.orbit.bili.presentation.viewmodel.SearchViewModel
 import com.qx.orbit.bili.presentation.viewmodel.TabMode
+import master.flame.danmaku.R
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
@@ -532,16 +539,23 @@ fun RecommendScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp)
+                                .padding(horizontal = 16.dp)
                                 .clickable { onLoadMore() },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "加载失败: $errorMessage\n点击重试", 
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center, 
-                                color = MaterialTheme.colorScheme.error,
-                                fontSize = 12.sp
-                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Image(
+                                    painter = painterResource(com.qx.orbit.bili.R.drawable.bili_2233_fail),
+                                    contentDescription = "Error",
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Text(
+                                    text = "加载失败，点击重试",
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                 }
