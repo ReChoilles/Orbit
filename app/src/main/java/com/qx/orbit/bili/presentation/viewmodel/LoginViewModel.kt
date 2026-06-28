@@ -20,7 +20,6 @@ sealed class LoginState {
     data class Error(val error: String) : LoginState()
 }
 
-@Deprecated("不再使用网页版登录(改为 HD 扫码登录 HdQrCodeLoginViewModel),作为回滚保留")
 class LoginViewModel : ViewModel() {
     private val _state = MutableStateFlow<LoginState>(LoginState.Initial)
     val state: StateFlow<LoginState> = _state.asStateFlow()

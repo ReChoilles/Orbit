@@ -19,10 +19,7 @@ import okhttp3.FormBody
 import okhttp3.Request
 import org.json.JSONObject
 
-/**
- * LoginApi —— 兼容保留旧 web 扫码登录端点,推荐使用 HD 扫码登录。
- */
-@Deprecated("不再使用网页版登录(改为 HD 扫码登录),作为回滚保留")
+/** LoginApi —— Web / HD 扫码登录端点 + Cookie 导入。 */
 object LoginApi {
 
     internal data class QRGenerateData(
@@ -38,7 +35,6 @@ object LoginApi {
         @SerializedName("message") val message: String? = null
     )
 
-    @Deprecated("不再使用网页版登录,请改用 HD 扫码登录 getTvAuthCode/pollTvQrCode")
     suspend fun getLoginQR(): Pair<String, String> = withContext(Dispatchers.IO) {
         val url = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
         val json = httpGet(url)
@@ -71,7 +67,6 @@ object LoginApi {
         }
     }
 
-    @Deprecated("不再使用网页版登录,请改用 HD 扫码登录 pollTvQrCode")
     suspend fun getLoginState(qrcodeKey: String): QRLoginData = withContext(Dispatchers.IO) {
         val url = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key=$qrcodeKey"
         val json = httpGet(url)
