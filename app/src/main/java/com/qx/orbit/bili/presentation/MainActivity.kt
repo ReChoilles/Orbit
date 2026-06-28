@@ -190,6 +190,15 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
                         }
                     )
                 }
+                composable("hd_login") {
+                    HdQrCodeLoginScreen(
+                        navController = navController,
+                        onLoginSuccess = {
+                            viewModel.fetchNavInfo()
+                            viewModel.loadMore(reset = true)
+                        }
+                    )
+                }
             composable(
                 "player/{playerDataJson}",
                 arguments = listOf(
@@ -346,7 +355,7 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                         Button(
                                             onClick = {
                                                 showTabMenu = false
-                                                navController.navigate("login")
+                                                navController.navigate("hd_login")
                                             },
                                             modifier = Modifier.fillMaxWidth(),
                                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)

@@ -32,6 +32,7 @@ private val BiliPink = Color(0xFFFB7299)
 private val TextPrimary = Color(0xFFEEEEEE)
 private val TextSecondary = Color(0xFFAAAAAA)
 
+@Deprecated("不再使用网页版登录(改为 HD 扫码登录 HdQrCodeLoginScreen),作为回滚保留")
 @Composable
 fun LoginScreen(
     navController: NavController,
