@@ -165,7 +165,7 @@ fun SettingsScreen(navController: NavController) {
 
             item {
                 Button(
-                    onClick = { /* TODO */ },
+                    onClick = { navController.navigate("about") },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface

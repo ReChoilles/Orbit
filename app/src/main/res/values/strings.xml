@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">Orbit</string>
     <string name="hello_world">Hello, %1$s!</string>
+    <string name="about_software">关于软件</string>
+    <string name="software_intro">应用简介</string>
+    <string name="about_description">玩原神玩的玩原神玩的玩原神玩的玩原神玩的玩原神玩的玩原神玩的玩原神玩的玩原神玩的玩原神玩的玩原神玩的玩原神玩的玩原神玩的</string>
+    <string name="developer_list_title">开发者</string>
 </resources>

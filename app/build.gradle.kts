@@ -6,7 +6,7 @@ plugins {
 android {
     namespace = "com.qx.orbit.bili"
     compileSdk {
-        version = release(36) {
+        version = release(36){
             minorApiLevel = 1
         }
     }
@@ -16,7 +16,9 @@ android {
         minSdk = 30
         targetSdk = 36
         versionCode = 2
-        versionName = "0.2-Alpha"
+        versionName = "0.21-Alpha"
+        resValue("string", "app_verCode", versionCode.toString())
+        resValue("string", "app_version", versionName.toString())
     }
 
     buildTypes {
@@ -30,12 +32,13 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     useLibrary("wear-sdk")
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     splits {
         abi {
