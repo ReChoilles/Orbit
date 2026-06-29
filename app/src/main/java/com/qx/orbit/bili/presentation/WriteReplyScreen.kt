@@ -53,8 +53,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
+import android.view.inputmethod.InputMethodManager
 import kotlin.math.max
 
 @Composable
@@ -68,9 +68,17 @@ fun WriteReplyScreen(
     var text by remember { mutableStateOf(TextFieldValue("")) }
     var isSending by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val view = LocalView.current
     var isFocused by remember { mutableStateOf(false) }
+    // 用于持有 Dialog 内部 View 的引用，以便通过正确的 windowToken 关闭键盘
+    var dialogView by remember { mutableStateOf<android.view.View?>(null) }
+
+    fun hideKeyboard() {
+        focusManager.clearFocus()
+        dialogView?.let { v ->
+            val imm = v.context.getSystemService(InputMethodManager::class.java)
+            imm?.hideSoftInputFromWindow(v.windowToken, 0)
+        }
+    }
 
     LaunchedEffect(visible) {
         if (visible) {
@@ -83,7 +91,7 @@ fun WriteReplyScreen(
         visible = visible,
         onDismissRequest = {
             if (isFocused) {
-                focusManager.clearFocus()
+                hideKeyboard()
             } else {
                 onClose()
             }
@@ -94,6 +102,10 @@ fun WriteReplyScreen(
         val listState = rememberTransformingLazyColumnState()
         val pagerState = rememberPagerState(pageCount = { emotes?.size ?: 0 })
         val focusRequester = remember { FocusRequester() }
+
+        // 捕获 Dialog 自己的 View，用于通过正确的 windowToken 关闭软键盘
+        val currentDialogView = LocalView.current
+        SideEffect { dialogView = currentDialogView }
 
         // Request focus after dialog is fully rendered
         LaunchedEffect(Unit) {
@@ -172,19 +184,12 @@ fun WriteReplyScreen(
                                 modifier = Modifier
                                     .onFocusChanged { isFocused = it.isFocused }
                                     .onPreRotaryScrollEvent {
-                                        focusManager.clearFocus()
+                                        hideKeyboard()
                                         false
                                     },
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                 keyboardActions = KeyboardActions(
-                                    onDone = {
-                                        val window = (view.context as? android.app.Activity)?.window
-                                        if (window != null) {
-                                            androidx.core.view.WindowCompat.getInsetsController(window, view)
-                                                .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
-                                        }
-                                        focusManager.clearFocus()
-                                    }
+                                    onDone = { hideKeyboard() }
                                 ),
                                 visualTransformation = { annotatedString ->
                                     val expandedText = buildString {
@@ -242,8 +247,7 @@ fun WriteReplyScreen(
                                 onClick = {
                                     if (text.text.isNotEmpty()) {
                                         isSending = true
-                                        keyboardController?.hide()
-                                        focusManager.clearFocus()
+                                        hideKeyboard()
                                         onSend(EmoteMapper.decode(text.text))
                                         text = TextFieldValue("")
                                     }
