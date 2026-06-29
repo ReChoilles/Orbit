@@ -161,12 +161,49 @@ class PlayerDanmuClientListener(
     private fun handlePlainPackage(data: ByteArray) {
         try {
             val text = String(data, StandardCharsets.UTF_8)
-            val jsonStart = text.indexOf("{")
-            if (jsonStart < 0) return
-            val jsonStr = text.substring(jsonStart)
-            val obj = JSONObject(jsonStr)
-            val cmd = obj.optString("cmd", "")
-            handleCmd(cmd, obj)
+            var pos = 0
+            while (pos < text.length) {
+                val jsonStart = text.indexOf('{', pos)
+                if (jsonStart < 0) break
+                var depth = 0
+                var inString = false
+                var escape = false
+                var jsonEnd = -1
+                for (i in jsonStart until text.length) {
+                    val c = text[i]
+                    if (escape) {
+                        escape = false
+                        continue
+                    }
+                    if (c == '\\' && inString) {
+                        escape = true
+                        continue
+                    }
+                    if (c == '"') {
+                        inString = !inString
+                        continue
+                    }
+                    if (inString) continue
+                    if (c == '{') depth++
+                    else if (c == '}') {
+                        depth--
+                        if (depth == 0) {
+                            jsonEnd = i
+                            break
+                        }
+                    }
+                }
+                if (jsonEnd < 0) break
+                try {
+                    val jsonStr = text.substring(jsonStart, jsonEnd + 1)
+                    val obj = JSONObject(jsonStr)
+                    val cmd = obj.optString("cmd", "")
+                    handleCmd(cmd, obj)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to parse JSON object", e)
+                }
+                pos = jsonEnd + 1
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse plain package", e)
         }
@@ -196,7 +233,7 @@ class PlayerDanmuClientListener(
 
                 val singleEmote = try {
                     first?.optJSONObject(13)?.let { emoteObj ->
-                        val url = emoteObj.optString("url", "")
+                        val url = emoteObj.optString("url", "").replace("http://", "https://")
                         val width = emoteObj.optInt("width", 0)
                         val height = emoteObj.optInt("height", 0)
                         if (url.isNotBlank() && width > 0 && height > 0) {
@@ -210,7 +247,7 @@ class PlayerDanmuClientListener(
                         val map = mutableMapOf<String, com.qx.orbit.bili.presentation.viewmodel.EmoteInline>()
                         emotsObj.keys().forEach { key ->
                             val emote = emotsObj.optJSONObject(key) ?: return@forEach
-                            val url = emote.optString("url", "")
+                            val url = emote.optString("url", "").replace("http://", "https://")
                             val width = emote.optInt("width", 0)
                             val height = emote.optInt("height", 0)
                             if (url.isNotBlank() && width > 0 && height > 0) {
@@ -250,7 +287,8 @@ class PlayerDanmuClientListener(
             }
             cmd == "ENTRY_EFFECT" -> {
                 val data = json.optJSONObject("data")
-                val copyWriting = data?.optString("copy_writing", "")?.replace(Regex("<[^>]+>"), "") ?: ""
+                val rawCopy = data?.optString("copy_writing", "") ?: ""
+                val copyWriting = rawCopy.replace("<%", "").replace("%>", "")
                 if (copyWriting.isNotEmpty()) {
                     callback.addDanmaku(copyWriting, 0xFF6699, textSize = 20, type = 1, id = UUID.randomUUID().toString())
                 }

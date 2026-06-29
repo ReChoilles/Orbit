@@ -68,6 +68,13 @@ fun WriteReplyScreen(
     val focusManager = LocalFocusManager.current
     var isFocused by remember { mutableStateOf(false) }
 
+    LaunchedEffect(visible) {
+        if (visible) {
+            isSending = false
+            text = TextFieldValue("")
+        }
+    }
+
     Dialog(
         visible = visible,
         onDismissRequest = {

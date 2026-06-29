@@ -136,11 +136,25 @@ class LiveDetailViewModel : ViewModel() {
 
                 val callback = object : PlayerCallback {
                     override fun addDanmaku(text: String, color: Int, textSize: Int, type: Int, borderColor: Int, senderName: String, emotes: Map<String, EmoteInline>?, singleEmote: EmoteInline?, id: String) {
+                        if (text.isBlank() && singleEmote == null) return
+                        val resolvedEmotes = emotes ?: run {
+                            val pkgs = _emotes.value
+                            if (pkgs != null && Regex("\\[.+?\\]").containsMatchIn(text)) {
+                                val allEmotes = pkgs.flatMap { it.emotes }
+                                val map = mutableMapOf<String, EmoteInline>()
+                                allEmotes.forEach { e ->
+                                    if (text.contains(e.name)) {
+                                        map[e.name] = EmoteInline(e.url.replace("http://", "https://"), 0, 0)
+                                    }
+                                }
+                                map.takeIf { it.isNotEmpty() }
+                            } else null
+                        }
                         val msg = DanmakuMessage(
                             id = id.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString(),
                             text = text,
                             color = color,
-                            emotes = emotes,
+                            emotes = resolvedEmotes,
                             singleEmote = singleEmote
                         )
                         _danmakuList.value = (_danmakuList.value + msg).distinctBy { it.id }.takeLast(200)
@@ -183,9 +197,25 @@ class LiveDetailViewModel : ViewModel() {
             try {
                 val csrf = CookieManager.getCsrf()
                 val rnd = (System.currentTimeMillis() / 1000).toString()
-                val body = okhttp3.FormBody.Builder()
+                val allEmotes = _emotes.value?.flatMap { it.emotes }
+                val matchedEmote = allEmotes
+                    ?.firstOrNull { it.name == text && it.emoticonUnique.isNotEmpty() }
+                val emoteUnique = matchedEmote?.emoticonUnique
+                if (emoteUnique == null && allEmotes != null) {
+                    val sample = allEmotes.take(3).map { "name=${it.name} unique=${it.emoticonUnique}" }
+                    Log.d("LiveDetail", "Send danmaku: text=$text emoteUnique=null sample=$sample")
+                } else {
+                    Log.d("LiveDetail", "Send danmaku: text=$text emoteUnique=$emoteUnique")
+                }
+                val sendMsg = if (emoteUnique != null) {
+                    val inner = text.removeSurrounding("[", "]")
+                    "[[$inner]]"
+                } else {
+                    text
+                }
+                val builder = okhttp3.FormBody.Builder()
                     .add("bubble", "0")
-                    .add("msg", text)
+                    .add("msg", sendMsg)
                     .add("color", "16777215")
                     .add("mode", "1")
                     .add("room_type", "0")
@@ -201,8 +231,11 @@ class LiveDetailViewModel : ViewModel() {
                     .add("roomid", roomId.toString())
                     .add("csrf", csrf)
                     .add("csrf_token", csrf)
-                    .build()
-                val signedUrl = WbiSigner.signUrl("https://api.live.bilibili.com/msg/send?web_location=444.8")
+                if (emoteUnique != null) {
+                    builder.add("emoticon_unique", emoteUnique)
+                }
+                val body = builder.build()
+                val signedUrl = WbiSigner.signUrl("https://api.live.bilibili.com/msg/send")
                 val request = okhttp3.Request.Builder()
                     .url(signedUrl)
                     .post(body)
@@ -216,9 +249,10 @@ class LiveDetailViewModel : ViewModel() {
                 val code = Regex("\"code\"\\s*:\\s*(\\d+)").find(respBody)?.groupValues?.get(1)?.toIntOrNull() ?: -1
                 val msg = Regex("\"message\"\\s*:\\s*\"([^\"]*)\"").find(respBody)?.groupValues?.get(1).orEmpty()
                 val ok = code == 0
+                if (!ok) Log.e("LiveDetail", "Send danmaku failed: code=$code msg=$msg body=$respBody")
                 withContext(Dispatchers.Main) { onResult(ok, msg) }
             } catch (e: Exception) {
-                Log.e("LiveDetail", "Send danmaku error: ${e.message}")
+                Log.e("LiveDetail", "Send danmaku error", e)
                 withContext(Dispatchers.Main) { onResult(false, e.message ?: "unknown") }
             }
         }
@@ -240,8 +274,9 @@ class LiveDetailViewModel : ViewModel() {
                             EmoteApi.Emote(
                                 id = e.emoticonId.toInt(),
                                 packageId = pkg.pkgId,
-                                name = "[${e.emoji}]",
-                                url = e.url,
+                                name = e.emoji.let { if (it.startsWith("[") && it.endsWith("]")) it else "[$it]" },
+                                url = e.url.replace("http://", "https://"),
+                                emoticonUnique = e.emoticonUnique,
                                 meta = EmoteApi.Emote.EmoteMeta(
                                     size = if (e.width > 0) e.height / e.width else 1
                                 )

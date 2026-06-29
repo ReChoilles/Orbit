@@ -1,5 +1,6 @@
 package com.qx.orbit.bili.presentation
 
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -50,6 +51,7 @@ import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.TextUnit
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
@@ -70,7 +72,9 @@ import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import androidx.compose.ui.res.painterResource
 import com.google.gson.Gson
+import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.LiveRoom
 import com.qx.orbit.bili.data.model.PlayerData
 import com.qx.orbit.bili.presentation.ui.components.UserAvatar
@@ -552,21 +556,22 @@ private fun buildDanmakuAnnotatedText(text: String, emotes: Map<String, EmoteInl
     if (emotes.isNullOrEmpty() || emotes.keys.none { text.contains(it) }) {
         return AnnotatedString(text) to emptyMap()
     }
+    val normalized = emotes.keys.fold(text) { acc, key -> acc.replace("[$key]", key) }
     val sortedKeys = emotes.keys.sortedByDescending { it.length }
     val regex = Regex(sortedKeys.joinToString("|") { Regex.escape(it) })
     val inlineContent = mutableMapOf<String, InlineTextContent>()
     val annotated = buildAnnotatedString {
         var lastIndex = 0
-        regex.findAll(text).forEach { match ->
+        regex.findAll(normalized).forEach { match ->
             if (match.range.first > lastIndex) {
-                append(text.substring(lastIndex, match.range.first))
+                append(normalized.substring(lastIndex, match.range.first))
             }
             val key = match.value
             val emote = emotes[key] ?: return@forEach
             val id = "emote_${key.hashCode()}"
             inlineContent[id] = InlineTextContent(
                 placeholder = Placeholder(
-                    width = 1.2.em,
+                    width = if (emote.width > 0 && emote.height > 0) 1.2.em * emote.width / emote.height else 1.2.em,
                     height = 1.2.em,
                     placeholderVerticalAlign = PlaceholderVerticalAlign.Center
                 )
@@ -578,14 +583,16 @@ private fun buildDanmakuAnnotatedText(text: String, emotes: Map<String, EmoteInl
                         .build(),
                     contentDescription = key,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    error = painterResource(R.drawable.akari),
+                    onError = { Log.e("DanmakuEmote", "Inline emote load failed: $key url=${emote.url}", it.result.throwable) }
                 )
             }
             appendInlineContentId(id, key)
             lastIndex = match.range.last + 1
         }
-        if (lastIndex < text.length) {
-            append(text.substring(lastIndex))
+        if (lastIndex < normalized.length) {
+            append(normalized.substring(lastIndex))
         }
     }
     return annotated to inlineContent
@@ -599,26 +606,42 @@ private fun DanmakuMessageText(
 ) {
     val single = msg.singleEmote
     if (single != null) {
-        val annotated = buildAnnotatedString { appendInlineContentId("single_emote", "[emote]") }
+        val senderName = msg.text.substringBefore("：", "").ifEmpty { msg.text.substringBefore(":", "") }
+        val annotated = buildAnnotatedString {
+            if (senderName.isNotEmpty()) {
+                append(senderName)
+                append("：")
+            }
+            appendInlineContentId("single_emote", "[emote]")
+        }
         Text(
             text = annotated,
             style = MaterialTheme.typography.bodySmall,
             color = textColor,
             modifier = modifier,
+            lineHeight = TextUnit.Unspecified,
             inlineContent = mapOf(
-                "single_emote" to InlineTextContent(
-                    placeholder = Placeholder(1.5.em, 1.5.em, PlaceholderVerticalAlign.Center)
-                ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(single.url)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "emote",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit
-                    )
-                }
+            "single_emote" to InlineTextContent(
+                placeholder = Placeholder(
+                    width = if (single.width > 0 && single.height > 0) {
+                        (2.5f * single.width.toFloat() / single.height).em
+                    } else 2.5.em,
+                    height = 2.5.em,
+                    placeholderVerticalAlign = PlaceholderVerticalAlign.Center
+                )
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(single.url)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "emote",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                    error = painterResource(R.drawable.bili_2233_fail),
+                    onError = { Log.e("DanmakuEmote", "Single emote load failed: ${single.url}", it.result.throwable) }
+                )
+            }
             )
         )
         return
@@ -630,6 +653,7 @@ private fun DanmakuMessageText(
         style = MaterialTheme.typography.bodySmall,
         color = textColor,
         modifier = modifier,
+        lineHeight = TextUnit.Unspecified,
         inlineContent = inline
     )
 }
