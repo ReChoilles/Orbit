@@ -156,6 +156,7 @@ class LiveDetailViewModel : ViewModel() {
                             emotes = resolvedEmotes,
                             singleEmote = singleEmote
                         )
+                        Log.d("LiveDetail", "addDanmaku id=$id text=$text emotes=${emotes?.keys} singleEmote=$singleEmote")
                         _danmakuList.value = (_danmakuList.value + msg).distinctBy { it.id }.takeLast(200)
                         _danmakuCount.value++
                     }
@@ -193,23 +194,7 @@ class LiveDetailViewModel : ViewModel() {
 
     fun sendDanmaku(text: String, roomId: Long, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
         viewModelScope.launch(Dispatchers.IO) {
-            val allEmotes = _emotes.value?.flatMap { it.emotes }
-            val matchedEmote = allEmotes
-                ?.firstOrNull { it.name == text && it.emoticonUnique.isNotEmpty() }
-            val emoteUnique = matchedEmote?.emoticonUnique
-            if (emoteUnique == null && allEmotes != null) {
-                val sample = allEmotes.take(3).map { "name=${it.name} unique=${it.emoticonUnique}" }
-                Log.d("LiveDetail", "Send danmaku: text=$text emoteUnique=null sample=$sample")
-            } else {
-                Log.d("LiveDetail", "Send danmaku: text=$text emoteUnique=$emoteUnique")
-            }
-            val sendMsg = if (emoteUnique != null) {
-                val inner = text.removeSurrounding("[", "]")
-                "[[$inner]]"
-            } else {
-                text
-            }
-            val result = LiveApi.sendDanmaku(sendMsg, roomId)
+            val result = LiveApi.sendDanmaku(text, roomId)
             if (!result.ok) Log.e("LiveDetail", "Send danmaku failed: ${result.message}")
             withContext(Dispatchers.Main) { onResult(result.ok, result.message) }
         }

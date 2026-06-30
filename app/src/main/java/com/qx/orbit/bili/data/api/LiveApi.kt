@@ -236,7 +236,7 @@ object LiveApi {
         @SerializedName("width") val width: Int = 0
     )
 
-    suspend fun getLiveEmoticons(roomId: Long, platform: String = "android"): List<LiveEmoticonPackage> = withContext(Dispatchers.IO) {
+    suspend fun getLiveEmoticons(roomId: Long, platform: String = "pc"): List<LiveEmoticonPackage> = withContext(Dispatchers.IO) {
         when (val resp = api.getLiveEmoticons(platform, roomId)) {
             is Result.Success -> {
                 val type = object : TypeToken<ApiResponse<EmoticonPanelData>>() {}.type
@@ -265,11 +265,13 @@ object LiveApi {
                 .build()
             HttpClient.client.newCall(request).execute().use { response ->
                 val respBody = response.body?.string().orEmpty()
+                android.util.Log.d("LiveApi", "sendMsg response: $respBody")
                 val code = Regex("\"code\"\\s*:\\s*(\\d+)").find(respBody)?.groupValues?.get(1)?.toIntOrNull() ?: -1
                 val msg = Regex("\"message\"\\s*:\\s*\"([^\"]*)\"").find(respBody)?.groupValues?.get(1).orEmpty()
                 SendResult(ok = code == 0, message = msg)
             }
         } catch (e: Exception) {
+            android.util.Log.e("LiveApi", "sendMsg error", e)
             SendResult(ok = false, message = e.message ?: "unknown")
         }
     }

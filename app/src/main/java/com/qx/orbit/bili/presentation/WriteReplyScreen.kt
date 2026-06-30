@@ -71,7 +71,7 @@ fun WriteReplyScreen(
     var isSending by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     var isFocused by remember { mutableStateOf(false) }
-    // 用于持有 Dialog 内部 View 的引用，以便通过正确的 windowToken 关闭键盘
+    // 持有 Dialog 内部 View 的引用
     var dialogView by remember { mutableStateOf<android.view.View?>(null) }
 
     fun hideKeyboard() {
@@ -105,7 +105,7 @@ fun WriteReplyScreen(
         val pagerState = rememberPagerState(pageCount = { emotes?.size ?: 0 })
         val focusRequester = remember { FocusRequester() }
 
-        // 捕获 Dialog 自己的 View，用于通过正确的 windowToken 关闭软键盘
+        // 捕获 Dialog 自己的 View
         val currentDialogView = LocalView.current
         SideEffect { dialogView = currentDialogView }
 
@@ -252,14 +252,15 @@ fun WriteReplyScreen(
                                         hideKeyboard()
                                         if (isLive) {
                                             val decoded = EmoteMapper.decode(text.text)
-                                            val hasPanelEmote = text.text.any { EmoteMapper.getNameForChar(it) != null }
-                                            val matchedEmote = if (hasPanelEmote) {
-                                                emotes
-                                                    ?.flatMap { it.emotes }
-                                                    ?.firstOrNull { it.name == decoded && it.emoticonUnique.isNotBlank() }
-                                            } else null
-                                            if (matchedEmote != null) {
-                                                onSendEmote(matchedEmote.emoticonUnique)
+                                            val allEmotes = emotes?.flatMap { it.emotes } ?: emptyList()
+                                            val emoteMap = allEmotes.associateBy { EmoteMapper.getCharForName(it.name) }
+                                            val chars = text.text.toList()
+                                            val allPanel = chars.isNotEmpty() && chars.all { emoteMap.containsKey(it) }
+                                            val onlyEmote = if (allPanel) emoteMap[chars.first()] else null
+                                            val sendLiveEmote = onlyEmote != null && isSpecialLiveEmote(onlyEmote.emoticonUnique)
+                                            android.util.Log.d("WriteReplySend", "text=${text.text} decoded=$decoded allPanel=$allPanel sendLiveEmote=$sendLiveEmote")
+                                            if (sendLiveEmote) {
+                                                onSendEmote(onlyEmote!!.emoticonUnique)
                                             } else {
                                                 onSend(decoded)
                                             }
@@ -349,12 +350,16 @@ fun WriteReplyScreen(
                                                                     .height(40.dp)
                                                                     .clip(RoundedCornerShape(4.dp))
                                                                     .clickable {
-                                                                        val char = EmoteMapper.getCharForName(emote.name).toString()
-                                                                        val currentText = text.text
-                                                                        val selection = text.selection
-                                                                        val newText = currentText.substring(0, selection.min) + char + currentText.substring(selection.max)
-                                                                        val newCursor = selection.min + char.length
-                                                                        text = TextFieldValue(newText, TextRange(newCursor))
+                                                                        if (isLive && isSpecialLiveEmote(emote.emoticonUnique)) {
+                                                                            onSendEmote(emote.emoticonUnique)
+                                                                        } else {
+                                                                            val char = EmoteMapper.getCharForName(emote.name).toString()
+                                                                            val currentText = text.text
+                                                                            val selection = text.selection
+                                                                            val newText = currentText.substring(0, selection.min) + char + currentText.substring(selection.max)
+                                                                            val newCursor = selection.min + char.length
+                                                                            text = TextFieldValue(newText, TextRange(newCursor))
+                                                                        }
                                                                     }
                                                                     .padding(4.dp),
                                                                 textAlign = TextAlign.Center
@@ -368,12 +373,16 @@ fun WriteReplyScreen(
                                                                     .size(40.dp)
                                                                     .clip(RoundedCornerShape(4.dp))
                                                                     .clickable {
-                                                                        val char = EmoteMapper.getCharForName(emote.name).toString()
-                                                                        val currentText = text.text
-                                                                        val selection = text.selection
-                                                                        val newText = currentText.substring(0, selection.min) + char + currentText.substring(selection.max)
-                                                                        val newCursor = selection.min + char.length
-                                                                        text = TextFieldValue(newText, TextRange(newCursor))
+                                                                        if (isLive && isSpecialLiveEmote(emote.emoticonUnique)) {
+                                                                            onSendEmote(emote.emoticonUnique)
+                                                                        } else {
+                                                                            val char = EmoteMapper.getCharForName(emote.name).toString()
+                                                                            val currentText = text.text
+                                                                            val selection = text.selection
+                                                                            val newText = currentText.substring(0, selection.min) + char + currentText.substring(selection.max)
+                                                                            val newCursor = selection.min + char.length
+                                                                            text = TextFieldValue(newText, TextRange(newCursor))
+                                                                        }
                                                                     }
                                                                     .padding(4.dp)
                                                             )
@@ -436,6 +445,12 @@ object EmoteMapper {
         }
         return sb.toString()
     }
+}
+
+fun isSpecialLiveEmote(emoticonUnique: String): Boolean {
+    return emoticonUnique.startsWith("official_") ||
+            emoticonUnique.startsWith("room_") ||
+            emoticonUnique.startsWith("upower_")
 }
 
 @Composable
