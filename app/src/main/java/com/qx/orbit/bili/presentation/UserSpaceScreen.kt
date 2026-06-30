@@ -65,6 +65,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
@@ -213,9 +216,9 @@ fun UserDynamicsPage(
                         )
                         if (!isSelf) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            androidx.wear.compose.material3.Button(
+                            Button(
                                 onClick = { viewModel.toggleFollow() },
-                                colors = androidx.wear.compose.material3.ButtonDefaults.buttonColors(
+                                colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isFollowed) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.primary,
                                     contentColor = if (isFollowed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary
                                 ),

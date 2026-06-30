@@ -73,10 +73,14 @@ fun ReplyCard(
     val context = LocalContext.current
     var linkClicked by remember { mutableStateOf(false) }
     var resolvedB23Links by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var showImageDialog by remember { mutableStateOf<String?>(null) }
+    var showImageDialog by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
 
-    showImageDialog?.let { url ->
-        ImageViewerDialog(imageUrl = url, onDismiss = { showImageDialog = null })
+    showImageDialog?.let { (images, index) ->
+        ImageViewerDialog(
+            imageUrls = images,
+            initialIndex = index,
+            onDismiss = { showImageDialog = null }
+        )
     }
 
     LaunchedEffect(reply.message) {
@@ -182,12 +186,14 @@ fun ReplyCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
                     val isSingle = reply.pictureList.size == 1
-                    reply.pictureList.forEach { url ->
-                        val fixedUrl = when {
+                    val fixedImages = reply.pictureList.map { url ->
+                        when {
                             url.startsWith("//") -> "https:$url"
                             url.startsWith("http://") -> url.replaceFirst("http://", "https://")
                             else -> url
                         }
+                    }
+                    fixedImages.forEachIndexed { index, fixedUrl ->
                         AsyncImage(
                             model = fixedUrl,
                             contentDescription = null,
@@ -196,7 +202,7 @@ fun ReplyCard(
                                 .then(if (isSingle) Modifier else Modifier.width(80.dp))
                                 .padding(end = 4.dp)
                                 .clip(RoundedCornerShape(4.dp))
-                                .clickable { showImageDialog = fixedUrl },
+                                .clickable { showImageDialog = Pair(fixedImages, index) },
                             contentScale = if (isSingle) ContentScale.Fit else ContentScale.Crop
                         )
                     }

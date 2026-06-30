@@ -172,7 +172,12 @@ object DynamicApi {
         @SerializedName("type") val type: String? = null,
         @SerializedName("text") val text: String? = null,
         @SerializedName("rid") val rid: String? = null,
-        @SerializedName("emoji") val emoji: EmojiData? = null
+        @SerializedName("emoji") val emoji: EmojiData? = null,
+        @SerializedName("pics") val pics: List<RichTextPic>? = null
+    )
+
+    internal data class RichTextPic(
+        @SerializedName("src") val src: String? = null
     )
 
     internal data class EmojiData(
@@ -370,11 +375,14 @@ object DynamicApi {
         var liveState = 0
         val emotes = mutableMapOf<String, Emote>()
         val members = mutableMapOf<String, Long>()
-        parseRichTextNodes(dynContent?.desc?.rich_text_nodes, emotes, members)
+        val images = mutableListOf<String>()
+        val descTextsToRemove = parseRichTextNodes(dynContent?.desc?.rich_text_nodes, emotes, members, images)
+        for (t in descTextsToRemove) {
+            if (t.isNotEmpty()) content = content.replace(t, "")
+        }
 
         var commentId = item.basic?.comment_id_str?.toLongOrNull() ?: 0L
         var commentType = item.basic?.comment_type ?: 0
-        val images = mutableListOf<String>()
         var cover = ""
 
         when (majorType) {
@@ -400,8 +408,11 @@ object DynamicApi {
                     pic.url?.fixUrl()?.takeIf { it.isNotEmpty() }?.let { images.add(it) }
                 }
                 val summary = majorObj?.opus?.summary
-                parseRichTextNodes(summary?.rich_text_nodes, emotes, members)
-                val summaryText = summary?.text ?: ""
+                val opusTextsToRemove = parseRichTextNodes(summary?.rich_text_nodes, emotes, members)
+                var summaryText = summary?.text ?: ""
+                for (t in opusTextsToRemove) {
+                    if (t.isNotEmpty()) summaryText = summaryText.replace(t, "")
+                }
                 val opusTitle = majorObj?.opus?.title ?: ""
                 if (content.isEmpty()) content = summaryText.ifEmpty { opusTitle }
             }
@@ -503,8 +514,9 @@ object DynamicApi {
         )
     }
 
-    private fun parseRichTextNodes(nodes: List<RichTextNode>?, emotes: MutableMap<String, Emote>, members: MutableMap<String, Long>) {
-        if (nodes == null) return
+    private fun parseRichTextNodes(nodes: List<RichTextNode>?, emotes: MutableMap<String, Emote>, members: MutableMap<String, Long>, images: MutableList<String>? = null): List<String> {
+        val textsToRemove = mutableListOf<String>()
+        if (nodes == null) return textsToRemove
         for (node in nodes) {
             val type = node.type ?: ""
             val text = node.text ?: ""
@@ -529,8 +541,18 @@ object DynamicApi {
                     val name = text.removePrefix("@").trim()
                     members[name] = mid
                 }
+            } else if (type == "RICH_TEXT_NODE_TYPE_VIEW_PICTURE" || type == "RICH_TEXT_NODE_TYPE_WEB_VIEW" || type == "RICH_TEXT_NODE_TYPE_PICTURE") {
+                if (!node.pics.isNullOrEmpty()) {
+                    textsToRemove.add(text)
+                }
+                node.pics?.forEach { pic ->
+                    pic.src?.fixUrl()?.takeIf { it.isNotEmpty() }?.let { url ->
+                        images?.add(url)
+                    }
+                }
             }
         }
+        return textsToRemove
     }
 
     private fun httpGet(url: String): String {

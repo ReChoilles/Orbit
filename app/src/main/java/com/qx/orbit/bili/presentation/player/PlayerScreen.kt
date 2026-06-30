@@ -102,6 +102,7 @@ fun PlayerScreen(
     
     var playerData by remember { mutableStateOf(initialData) }
     val isLive = playerData.type == PlayerData.TYPE_LIVE
+    val isLocal = playerData.type == PlayerData.TYPE_LOCAL
     var showDanmaku by remember { mutableStateOf(SharedPreferencesUtil.getBoolean("player_danmaku_default_show", true)) }
     var isPlaying by remember { mutableStateOf(false) }
     var isPrepared by remember { mutableStateOf(false) }
@@ -187,14 +188,14 @@ fun PlayerScreen(
         if (showDanmaku) danmakuView.show() else danmakuView.hide()
     }
 
-    LaunchedEffect(if (isLive) playerData.aid else playerData.cid) {
+    LaunchedEffect(if (isLive) playerData.aid else if (isLocal) playerData.videoUrl else playerData.cid) {
         isLoading = true
         try {
-            if (!CookieManager.getCookie().contains("buvid3")) {
+            if (!isLocal && !CookieManager.getCookie().contains("buvid3")) {
                 CookiesApi.checkCookies()
             }
 
-            if (!isLive) {
+            if (!isLive && !isLocal) {
                 val danmakuSegment = DanmakuApi.getVideoDanmakuSegment(playerData.aid, playerData.cid, 1)
                 val parser = BiliProtobufDanmakuParser()
                 if (danmakuSegment != null) {
@@ -223,6 +224,32 @@ fun PlayerScreen(
                 danmakuContext = ctx
                 danmakuView.prepare(parser, ctx)
                 danmakuView.enableDanmakuDrawingCache(true)
+            } else if (isLocal) {
+                val ctx = DanmakuContext.create().apply {
+                    setDuplicateMergingEnabled(false)
+                    setScaleTextSize(0.8f)
+                    setDanmakuTransparency(0.4f)
+                }
+                danmakuContext = ctx
+                var xmlFile = java.io.File("${playerData.videoUrl}.danmaku.xml")
+                if (!xmlFile.exists()) {
+                    val fallbackPath = playerData.videoUrl.replace(".mp4", ".danmaku.xml").replace(".m4s", ".danmaku.xml")
+                    xmlFile = java.io.File(android.net.Uri.parse(fallbackPath).path ?: "")
+                }
+                if (xmlFile.exists()) {
+                    val loader = master.flame.danmaku.danmaku.loader.android.DanmakuLoaderFactory.create(master.flame.danmaku.danmaku.loader.android.DanmakuLoaderFactory.TAG_BILI)
+                    loader.load(xmlFile.inputStream())
+                    val parser = master.flame.danmaku.danmaku.parser.android.BiliDanmukuParser()
+                    parser.load(loader.dataSource)
+                    danmakuView.prepare(parser, ctx)
+                } else {
+                    danmakuView.prepare(object : master.flame.danmaku.danmaku.parser.BaseDanmakuParser() {
+                        override fun parse(): master.flame.danmaku.danmaku.model.android.Danmakus {
+                            return master.flame.danmaku.danmaku.model.android.Danmakus()
+                        }
+                    }, ctx)
+                }
+                danmakuView.enableDanmakuDrawingCache(true)
             } else {
                 val ctx = DanmakuContext.create().apply {
                     setDuplicateMergingEnabled(false)
@@ -238,8 +265,8 @@ fun PlayerScreen(
                 danmakuView.enableDanmakuDrawingCache(true)
             }
 
-            val result = if (isLive) playerData else PlayerApi.getVideo(playerData)
-            if (!isLive) playerData = result
+            val result = if (isLive || isLocal) playerData else PlayerApi.getVideo(playerData)
+            if (!isLive && !isLocal) playerData = result
             if (result.videoUrl.isNotEmpty()) {
                 mediaPlayer.reset()
                 mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "allowed_extensions", "ALL")
@@ -278,7 +305,7 @@ fun PlayerScreen(
                     isPlaying = true
                     danmakuView.start()
                     
-                    if (!isLive) {
+                    if (!isLive && playerData.type != PlayerData.TYPE_LOCAL) {
                         // Report heartbeat on start
                         scope.launch {
                             try {
@@ -403,7 +430,7 @@ fun PlayerScreen(
         onDispose {
             view.keepScreenOn = false
 
-            if (!isLive) {
+            if (!isLive && playerData.type != PlayerData.TYPE_LOCAL) {
                 var currentPosSeconds = 0L
                 try {
                     currentPosSeconds = mediaPlayer.currentPosition / 1000
@@ -503,6 +530,7 @@ fun PlayerScreen(
                             isPlaying = false
                             // Report progress on pause
                             scope.launch {
+                                if (playerData.type == PlayerData.TYPE_LOCAL || isLive) return@launch
                                 try {
                                     val pos = mediaPlayer.currentPosition / 1000
                                     HistoryApi.reportHistory(playerData.aid, playerData.cid, pos)
@@ -759,6 +787,7 @@ fun PlayerScreen(
                                 danmakuView.pause()
                                 isPlaying = false
                                 scope.launch {
+                                    if (playerData.type == PlayerData.TYPE_LOCAL || isLive) return@launch
                                     try {
                                         val pos = mediaPlayer.currentPosition / 1000
                                         HistoryApi.reportHistory(playerData.aid, playerData.cid, pos)

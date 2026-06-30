@@ -15,8 +15,8 @@ android {
         applicationId = "com.qx.orbit.bili"
         minSdk = 30
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3-Alpha"
+        versionCode = 4
+        versionName = "0.4-Alpha"
         resValue("string", "app_verCode", versionCode.toString())
         resValue("string", "app_version", versionName.toString())
     }
@@ -99,6 +99,10 @@ dependencies {
 
     // Jsoup (for HTML parsing in OpusApi, CookieRefreshApi)
     implementation(libs.jsoup)
+
+    // Shizuku
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
 
     // Coil for Compose
     implementation(libs.coil.compose)

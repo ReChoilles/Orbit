@@ -395,6 +395,27 @@ object UserInfoApi {
         (json?.get("code") as? Number)?.toInt() ?: -1
     }
 
+    suspend fun blockUser(mid: Long): Int = withContext(Dispatchers.IO) {
+        val url = "https://api.bilibili.com/x/relation/modify"
+        val body = FormBody.Builder()
+            .add("fid", mid.toString())
+            .add("act", "5") // 5 means block (拉黑)
+            .add("re_src", "11")
+            .add("csrf", CookieManager.getCsrf())
+            .build()
+        val request = Request.Builder().url(url)
+            .post(body)
+            .addHeader("Cookie", CookieManager.getCookie())
+            .addHeader("User-Agent", USER_AGENT)
+            .addHeader("Referer", "https://www.bilibili.com/")
+            .build()
+        val response = HttpClient.client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return@withContext -1
+        @Suppress("UNCHECKED_CAST")
+        val json = GsonConfig.gson.fromJson(responseBody, Map::class.java) as? Map<String, Any?>
+        (json?.get("code") as? Number)?.toInt() ?: -1
+    }
+
     suspend fun exitLogin() = withContext(Dispatchers.IO) {
         val url = "https://passport.bilibili.com/login/exit/v2"
         val body = FormBody.Builder()

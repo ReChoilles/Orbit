@@ -90,15 +90,32 @@ class MainViewModel : ViewModel() {
                 }
 
                 _videoList.value = if (reset) {
-                    newItems
+                    newItems.distinctBy { it.bvid }
                 } else {
-                    _videoList.value + newItems
+                    (_videoList.value + newItems).distinctBy { it.bvid }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 _errorMessage.value = e.localizedMessage ?: "加载失败"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun removeAndDislikeVideo(video: VideoCard) {
+        val currentList = _videoList.value.toMutableList()
+        currentList.remove(video)
+        _videoList.value = currentList
+
+        viewModelScope.launch {
+            try {
+                RecommendApi.dislike(video.aid)
+                if (video.mid > 0) {
+                    com.qx.orbit.bili.data.api.UserInfoApi.blockUser(video.mid)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

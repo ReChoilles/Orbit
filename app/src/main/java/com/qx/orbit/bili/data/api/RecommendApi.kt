@@ -102,8 +102,22 @@ object RecommendApi {
         } ?: "",
         aid = if (id > 0) id else aid,
         bvid = bvid ?: "",
-        cid = cid
+        cid = cid,
+        mid = owner?.mid ?: 0
     )
+
+    suspend fun dislike(aid: Long): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://api.bilibili.com/x/web-interface/index/top/feed/rcmd/dislike?goto=av&id=$aid&reason_id=1&rid=1&tag_id=0"
+            val json = httpGet(url)
+            val type = object : TypeToken<ApiResponse<Any>>() {}.type
+            val resp: ApiResponse<Any>? = GsonConfig.gson.fromJson(json, type)
+            resp?.isSuccess == true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 
     private fun httpGet(url: String): String {
         val request = Request.Builder().url(url)

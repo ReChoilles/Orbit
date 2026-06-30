@@ -12,27 +12,58 @@ import androidx.compose.ui.graphics.Color
 import androidx.wear.compose.material3.Dialog
 import coil.compose.AsyncImage
 
+import androidx.wear.compose.foundation.pager.HorizontalPager
+import androidx.wear.compose.foundation.pager.rememberPagerState
+import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.HorizontalPageIndicator
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
+
 @Composable
 fun ImageViewerDialog(
-    imageUrl: String,
+    imageUrls: List<String>,
+    initialIndex: Int = 0,
     onDismiss: () -> Unit
 ) {
+    if (imageUrls.isEmpty()) return
+
     Dialog(
         visible = true,
         onDismissRequest = onDismiss
     ) {
+        val pagerState = rememberPagerState(initialPage = initialIndex, pageCount = { imageUrls.size })
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
-                .clickable { onDismiss() },
-            contentAlignment = Alignment.Center
         ) {
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth()
-            )
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                Box(
+                    modifier = Modifier.fillMaxSize().clickable { onDismiss() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    var dialogUrl = imageUrls[page]
+                    if (!dialogUrl.contains("@")) {
+                        dialogUrl = "$dialogUrl@1024w.webp"
+                    }
+                    AsyncImage(
+                        model = dialogUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+            if (imageUrls.size > 1) {
+                HorizontalPageIndicator(
+                    pagerState = pagerState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp)
+                )
+            }
         }
     }
 }

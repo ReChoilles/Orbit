@@ -199,14 +199,40 @@ fun OpusContentPage(
     val context = LocalContext.current
     val listState = rememberTransformingLazyColumnState()
     val behavior = RotaryScrollableDefaults.behavior(listState)
-    var showImageDialog by remember { mutableStateOf<String?>(null) }
+    var showImageDialog by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
     
     val likeInteractionSource = remember { MutableInteractionSource() }
     val favInteractionSource = remember { MutableInteractionSource() }
 
+    val allImages = remember(item.topImages, item.paragraphs) {
+        val list = mutableListOf<String>()
+        item.topImages.forEach { imgUrl ->
+            val fixedUrl = when {
+                imgUrl.startsWith("//") -> "https:$imgUrl"
+                imgUrl.startsWith("http://") -> imgUrl.replaceFirst("http://", "https://")
+                else -> imgUrl
+            }
+            list.add(fixedUrl)
+        }
+        item.paragraphs?.forEach { p ->
+            if (p.type == OpusParagraph.TYPE_PIC) {
+                p.pics.forEach { imgUrl ->
+                    val fixedUrl = when {
+                        imgUrl.startsWith("//") -> "https:$imgUrl"
+                        imgUrl.startsWith("http://") -> imgUrl.replaceFirst("http://", "https://")
+                        else -> imgUrl
+                    }
+                    list.add(fixedUrl)
+                }
+            }
+        }
+        list
+    }
+
     if (showImageDialog != null) {
         ImageViewerDialog(
-            imageUrl = showImageDialog!!,
+            imageUrls = showImageDialog!!.first,
+            initialIndex = showImageDialog!!.second,
             onDismiss = { showImageDialog = null }
         )
     }
@@ -277,7 +303,7 @@ fun OpusContentPage(
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { showImageDialog = fixedUrl },
+                                .clickable { showImageDialog = Pair(allImages, allImages.indexOf(fixedUrl).takeIf { it >= 0 } ?: 0) },
                             contentScale = ContentScale.FillWidth
                         )
                     }
@@ -375,7 +401,7 @@ fun OpusContentPage(
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .clickable { showImageDialog = fixedUrl },
+                                        .clickable { showImageDialog = Pair(allImages, allImages.indexOf(fixedUrl).takeIf { it >= 0 } ?: 0) },
                                     contentScale = ContentScale.FillWidth
                                 )
                             }

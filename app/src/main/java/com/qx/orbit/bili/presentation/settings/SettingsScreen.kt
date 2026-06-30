@@ -1,5 +1,6 @@
 package com.qx.orbit.bili.presentation.settings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,6 +49,12 @@ import android.content.Intent
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.wear.compose.material3.SurfaceTransformation
 import com.qx.orbit.bili.presentation.MainActivity
+import com.qx.orbit.bili.util.ShizukuUtils
+import com.qx.orbit.bili.presentation.ui.components.ShizukuPermissionDialog
+import com.qx.orbit.bili.presentation.ui.components.ShizukuNotInstalledDialog
+import com.qx.orbit.bili.presentation.ui.components.ShizukuActivationDialog
+import rikka.shizuku.Shizuku
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -55,6 +62,60 @@ fun SettingsScreen(navController: NavController) {
     val transformationSpec = rememberTransformationSpec()
     val context = LocalContext.current
     val isLoggedIn = remember { CookieManager.getCookie().isNotEmpty() }
+    
+    var showShizukuDialog by remember { mutableStateOf(false) }
+    var showShizukuNotInstalled by remember { mutableStateOf(false) }
+    var showShizukuActivation by remember { mutableStateOf(false) }
+    var hasPermission by remember { mutableStateOf(ShizukuUtils.isShizukuAuthorized()) }
+
+    // Shizuku permission listener
+    LaunchedEffect(Unit) {
+        val listener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+            if (grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                if (ShizukuUtils.grantManageExternalStorage(context)) {
+                    hasPermission = true
+                }
+            }
+        }
+        Shizuku.addRequestPermissionResultListener(listener)
+    }
+
+    if (showShizukuDialog) {
+        ShizukuPermissionDialog(
+            show = true,
+            onDismissRequest = { showShizukuDialog = false },
+            context = context,
+            onConfirmAuth = {
+                showShizukuDialog = false
+                if (!ShizukuUtils.isShizukuAvailable()) {
+                    if (ShizukuUtils.getShizukuVersionName(context) != null) {
+                        showShizukuActivation = true
+                    } else {
+                        showShizukuNotInstalled = true
+                    }
+                } else {
+                    try {
+                        Shizuku.requestPermission(0)
+                    } catch (e: Exception) {
+                        ShizukuUtils.openShizukuManager(context)
+                    }
+                }
+            }
+        )
+    }
+
+    if (showShizukuNotInstalled) {
+        ShizukuNotInstalledDialog(show = true, onDismissRequest = { showShizukuNotInstalled = false })
+    }
+
+    if (showShizukuActivation) {
+        ShizukuActivationDialog(
+            show = true,
+            onDismissRequest = { showShizukuActivation = false },
+            context = context,
+            onShowNotInstalled = { showShizukuNotInstalled = true }
+        )
+    }
 
     ScreenScaffold(
         timeText = { WysTimeText() },
@@ -77,7 +138,7 @@ fun SettingsScreen(navController: NavController) {
                             }
                         }
                 ) {
-                    Text(text = "设置")
+                    Text(text = "设置", color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -165,6 +226,39 @@ fun SettingsScreen(navController: NavController) {
 
             item {
                 Button(
+                    onClick = {
+                        if (!hasPermission) {
+                            showShizukuDialog = true
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = if (hasPermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                        .graphicsLayer {
+                            with(transformationSpec) {
+                                applyContainerTransformation(scrollProgress)
+                            }
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "全文件访问权限", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (hasPermission) {
+                            Icon(Icons.Default.Check, contentDescription = "Granted", modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+
+            item {
+                Button(
                     onClick = { navController.navigate("about") },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -213,7 +307,7 @@ fun SettingPreferenceScreen(navController: NavController) {
                             }
                         }
                 ) {
-                    Text(text = "偏好设置")
+                    Text(text = "偏好设置", color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -231,6 +325,34 @@ fun SettingPreferenceScreen(navController: NavController) {
                     secondaryLabel = {
                         Text(
                             text = if (checked) "HD版风控更宽松" else "将使用传统网页端API",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                        .graphicsLayer {
+                            with(transformationSpec) {
+                                applyContainerTransformation(scrollProgress)
+                            }
+                        }
+                )
+            }
+            item {
+                var checked by remember { mutableStateOf(SharedPreferencesUtil.getBoolean("confirm_dislike", true)) }
+                SwitchButton(
+                    checked = checked,
+                    onCheckedChange = { isChecked ->
+                        checked = isChecked
+                        SharedPreferencesUtil.putBoolean("confirm_dislike", isChecked)
+                    },
+                    label = {
+                        Text(text = "拉黑视频需要二次确认", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    secondaryLabel = {
+                        Text(
+                            text = if (checked) "主页拉黑将弹窗确认" else "直接拉黑",
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -275,7 +397,7 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
                             }
                         }
                 ) {
-                    Text(text = "内置播放器设置")
+                    Text(text = "内置播放器设置", color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -436,7 +558,7 @@ fun SettingUIScreen(navController: NavController) {
                             }
                         }
                 ) {
-                    Text(text = "界面设置")
+                    Text(text = "界面设置", color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -492,7 +614,7 @@ fun SettingLoginStatusScreen(navController: NavController) {
                             }
                         }
                 ) {
-                    Text(text = "登录状态管理")
+                    Text(text = "登录状态管理", color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -596,7 +718,7 @@ fun SettingVideoRenderScreen(navController: NavController) {
                             }
                         }
                 ) {
-                    Text(text = "视频渲染")
+                    Text(text = "视频渲染", color = MaterialTheme.colorScheme.primary)
                 }
             }
 

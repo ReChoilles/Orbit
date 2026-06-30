@@ -38,7 +38,8 @@ data class VideoCard(
     val type: String = "video",
     val aid: Long = 0,
     val bvid: String = "",
-    val cid: Long = 0
+    val cid: Long = 0,
+    val mid: Long = 0
 )
 
 data class Stats(
@@ -83,5 +84,14 @@ object StringUtil {
         val s = seconds % 60
         return if (h > 0) String.format("%d:%02d:%02d", h, m, s)
         else String.format("%02d:%02d", m, s)
+    }
+
+    fun parseTime(time: String): Int {
+        val parts = time.split(":")
+        return when (parts.size) {
+            3 -> (parts[0].toIntOrNull() ?: 0) * 3600 + (parts[1].toIntOrNull() ?: 0) * 60 + (parts[2].toIntOrNull() ?: 0)
+            2 -> (parts[0].toIntOrNull() ?: 0) * 60 + (parts[1].toIntOrNull() ?: 0)
+            else -> 0
+        }
     }
 }

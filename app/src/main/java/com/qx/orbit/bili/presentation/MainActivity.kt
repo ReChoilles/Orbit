@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -57,6 +58,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -80,11 +83,15 @@ import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
+import androidx.wear.compose.material3.SwipeToReveal
+import androidx.wear.compose.material3.SwipeToRevealScope
+import androidx.wear.compose.material3.*
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import com.qx.orbit.bili.presentation.about.AboutScreen
 import com.qx.orbit.bili.presentation.ui.components.UserAvatar
 import com.qx.orbit.bili.presentation.ui.components.UserNameText
+import com.qx.orbit.bili.presentation.ui.components.WysAlertDialog
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
@@ -100,6 +107,7 @@ import com.qx.orbit.bili.data.remote.CookieManager
 import com.qx.orbit.bili.presentation.ui.components.WysTimeText
 import com.qx.orbit.bili.presentation.player.PlayerScreen
 import com.qx.orbit.bili.presentation.settings.SettingTerminalPlayerScreen
+import com.qx.orbit.bili.presentation.DownloadManagerScreen
 import com.qx.orbit.bili.presentation.settings.SettingVideoRenderScreen
 import com.qx.orbit.bili.presentation.settings.SettingUIScreen
 import com.qx.orbit.bili.presentation.settings.SettingsScreen
@@ -116,6 +124,12 @@ import com.qx.orbit.bili.presentation.settings.SettingPreferenceScreen
 import com.qx.orbit.bili.presentation.settings.SettingLoginStatusScreen
 import com.qx.orbit.bili.R
 import kotlin.math.roundToInt
+import com.qx.orbit.bili.util.ShizukuUtils
+import com.qx.orbit.bili.presentation.ui.components.ShizukuPermissionDialog
+import com.qx.orbit.bili.presentation.ui.components.ShizukuNotInstalledDialog
+import com.qx.orbit.bili.presentation.ui.components.ShizukuActivationDialog
+import androidx.compose.ui.platform.LocalContext
+import rikka.shizuku.Shizuku
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -127,6 +141,7 @@ class MainActivity : ComponentActivity() {
         )
         CookieManager.init(this)
         SharedPreferencesUtil.init(this)
+        com.qx.orbit.bili.utils.VideoDownloadManager.init(this)
         setContent {
             WearApp()
         }
@@ -136,6 +151,68 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun WearApp(viewModel: MainViewModel = viewModel()) {
     OrbitTheme {
+        val context = LocalContext.current
+        var showShizukuDialog by remember { mutableStateOf(false) }
+        var showShizukuNotInstalled by remember { mutableStateOf(false) }
+        var showShizukuActivation by remember { mutableStateOf(false) }
+
+        LaunchedEffect(Unit) {
+            val hasDeclined = SharedPreferencesUtil.getBoolean("shizuku_declined", false)
+            if (!hasDeclined && !ShizukuUtils.isShizukuAuthorized()) {
+                showShizukuDialog = true
+            }
+        }
+
+        if (showShizukuDialog) {
+            ShizukuPermissionDialog(
+                show = true,
+                onDismissRequest = {
+                    showShizukuDialog = false
+                    SharedPreferencesUtil.putBoolean("shizuku_declined", true)
+                },
+                context = context,
+                onConfirmAuth = {
+                    showShizukuDialog = false
+                    if (!ShizukuUtils.isShizukuAvailable()) {
+                        if (ShizukuUtils.getShizukuVersionName(context) != null) {
+                            showShizukuActivation = true
+                        } else {
+                            showShizukuNotInstalled = true
+                        }
+                    } else {
+                        try {
+                            Shizuku.requestPermission(0)
+                        } catch (e: Exception) {
+                            ShizukuUtils.openShizukuManager(context)
+                        }
+                    }
+                }
+            )
+        }
+
+        if (showShizukuNotInstalled) {
+            ShizukuNotInstalledDialog(show = true, onDismissRequest = { showShizukuNotInstalled = false })
+        }
+
+        if (showShizukuActivation) {
+            ShizukuActivationDialog(
+                show = true,
+                onDismissRequest = { showShizukuActivation = false },
+                context = context,
+                onShowNotInstalled = { showShizukuNotInstalled = true }
+            )
+        }
+
+        // Shizuku permission listener
+        LaunchedEffect(Unit) {
+            val listener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+                if (grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    ShizukuUtils.grantManageExternalStorage(context)
+                }
+            }
+            Shizuku.addRequestPermissionResultListener(listener)
+        }
+
         val navController = rememberSwipeDismissableNavController()
         val currentBackStackEntry by navController.currentBackStackEntryFlow.collectAsState(initial = navController.currentBackStackEntry)
         val currentRoute = currentBackStackEntry?.destination?.route
@@ -250,6 +327,9 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
                 val userSpaceViewModel: UserSpaceViewModel = viewModel()
                 UserSpaceScreen(mid = mid, viewModel = userSpaceViewModel, navController = navController)
             }
+            composable("download_manager") {
+                DownloadManagerScreen(navController = navController)
+            }
             composable("settings_main") {
                 SettingsScreen(navController = navController)
             }
@@ -315,7 +395,8 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                 focusRequester = focusRequester,
                 navController = navController,
                 onLoadMore = { viewModel.loadMore() },
-                onTabClick = { showTabMenu = true }
+                onTabClick = { showTabMenu = true },
+                onRemoveVideo = { viewModel.removeAndDislikeVideo(it) }
             )
         }
 
@@ -528,6 +609,34 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                     Button(
                                         onClick = {
                                             showTabMenu = false
+                                            navController.navigate("download_manager")
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                            contentColor = MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(Icons.Default.Download, modifier = Modifier.size(20.dp), contentDescription = "缓存管理")
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("缓存")
+                                    }
+                                }
+                            }
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .transformedHeight(this, menuTransformationSpec)
+                                        .graphicsLayer {
+                                            with(menuTransformationSpec) {
+                                                applyContainerTransformation(scrollProgress)
+                                            }
+                                        }
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            showTabMenu = false
                                             navController.navigate("settings_main")
                                         },
                                         colors = ButtonDefaults.buttonColors(
@@ -561,7 +670,8 @@ fun RecommendScreen(
     focusRequester: FocusRequester,
     navController: NavHostController,
     onLoadMore: () -> Unit,
-    onTabClick: () -> Unit
+    onTabClick: () -> Unit,
+    onRemoveVideo: (VideoCard) -> Unit
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
@@ -571,6 +681,8 @@ fun RecommendScreen(
     // Dynamically measure actual title area height for complete hiding
     var actualTitleHeightPx by remember { mutableFloatStateOf(0f) }
     var titleOffset by remember { mutableFloatStateOf(0f) }
+
+    var videoToDelete by remember { mutableStateOf<VideoCard?>(null) }
 
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
@@ -600,21 +712,57 @@ fun RecommendScreen(
                 ),
                 state = listState
             ) {
-                items(videoList.size) { index ->
+                items(videoList.size, key = { index -> videoList[index].bvid }) { index ->
                     if (index == videoList.size - 1 && !isLoading) {
                         LaunchedEffect(index) {
                             onLoadMore()
                         }
                     }
                     
-                    RecommendVideoCard(
-                        item = videoList[index],
-                        onClick = {
-                            navController.navigate("detail/${videoList[index].bvid}/${videoList[index].aid}")
+                    val revealState = rememberRevealState()
+                    LaunchedEffect(videoToDelete) {
+                        if (videoToDelete == null && revealState.currentValue != RevealValue.Covered) {
+                            revealState.animateTo(RevealValue.Covered)
+                        }
+                    }
+
+                    SwipeToReveal(
+                        revealState = revealState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateItem()
+                            .transformedHeight(this, transformationSpec),
+                        primaryAction = {
+                            PrimaryActionButton(
+                                onClick = { 
+                                    if (SharedPreferencesUtil.getBoolean("confirm_dislike", true)) {
+                                        videoToDelete = videoList[index]
+                                    } else {
+                                        onRemoveVideo(videoList[index])
+                                    }
+                                },
+                                icon = { Icon(Icons.Default.Delete, "Dislike") },
+                                text = { Text("不感兴趣") },
+                                modifier = Modifier.fillMaxHeight()
+                            )
                         },
-                        modifier = Modifier.transformedHeight(this, transformationSpec),
-                        transformation = SurfaceTransformation(transformationSpec)
-                    )
+                        onSwipePrimaryAction = {
+                            if (SharedPreferencesUtil.getBoolean("confirm_dislike", true)) {
+                                videoToDelete = videoList[index]
+                            } else {
+                                onRemoveVideo(videoList[index])
+                            }
+                        }
+                    ) {
+                        RecommendVideoCard(
+                            item = videoList[index],
+                            onClick = {
+                                navController.navigate("detail/${videoList[index].bvid}/${videoList[index].aid}")
+                            },
+                            modifier = Modifier.transformedHeight(this, transformationSpec),
+                            transformation = SurfaceTransformation(transformationSpec)
+                        )
+                    }
                 }
                 if (isLoading) {
                     item {
@@ -675,6 +823,22 @@ fun RecommendScreen(
             }
         }
     }
+
+    WysAlertDialog(
+        show = videoToDelete != null,
+        title = "确认拉黑",
+        content = {
+            Text(
+                text = "是否不感兴趣并拉黑该UP主？",
+                textAlign = TextAlign.Center
+            )
+        },
+        onDismissRequest = { videoToDelete = null },
+        onConfirm = {
+            videoToDelete?.let { onRemoveVideo(it) }
+            videoToDelete = null
+        }
+    )
 }
 
 @WearPreviewDevices

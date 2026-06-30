@@ -41,6 +41,7 @@ import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayCircleOutline
@@ -80,9 +81,11 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.foundation.pager.HorizontalPager
 import androidx.wear.compose.foundation.pager.rememberPagerState
@@ -133,6 +136,8 @@ import kotlinx.coroutines.withContext
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import kotlin.time.Duration.Companion.milliseconds
+import com.qx.orbit.bili.utils.VideoDownloadManager
+import com.qx.orbit.bili.data.api.PlayerApi
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -151,6 +156,9 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
     val isLoading by viewModel.isLoading.collectAsState()
     var showCoinDialog by remember { mutableStateOf(false) }
     var showFavDialog by remember { mutableStateOf(false) }
+    var showCacheDialog by remember { mutableStateOf(false) }
+    var cacheQualities by remember { mutableStateOf<List<Pair<String, Int>>>(emptyList()) }
+    var isFetchingQualities by remember { mutableStateOf(false) }
     
     val emotes by viewModel.emotes.collectAsState()
     val isEmoteLoading by viewModel.isEmoteLoading.collectAsState()
@@ -166,6 +174,81 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
             focusRequesters[pagerState.currentPage].requestFocus()
         } catch (e: Exception) {
             // Ignore focus exceptions
+        }
+    }
+    
+    // Cache Dialog
+    Dialog(
+        visible = showCacheDialog,
+        onDismissRequest = { showCacheDialog = false }
+    ) {
+        if (isFetchingQualities) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else {
+            val listState = rememberTransformingLazyColumnState()
+            TransformingLazyColumn(state = listState, horizontalAlignment = Alignment.CenterHorizontally, contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp)) {
+                item {
+                    Text("选择缓存清晰度", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(8.dp))
+                }
+                items(cacheQualities) { (name, qn) ->
+                    Button(
+                        onClick = {
+                            val info = videoInfo
+                            if (info != null) {
+                                VideoDownloadManager.enqueue(
+                                    url = "", // Will be fetched inside manager
+                                    title = info.title,
+                                    filename = "${info.title}_$qn.mp4",
+                                    context = context,
+                                    aid = aid,
+                                    cid = info.cids.firstOrNull() ?: 0L,
+                                    bvid = bvid,
+                                    qn = qn,
+                                    type = "MP4",
+                                    coverUrl = info.cover.replace("http://", "https://"),
+                                    duration = com.qx.orbit.bili.data.model.StringUtil.parseTime(info.duration)
+                                )
+                                RoundToast.show(context, "正在下载视频...")
+                                showCacheDialog = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(name)
+                    }
+                }
+                item {
+                    Button(
+                        onClick = {
+                            val info = videoInfo
+                            if (info != null) {
+                                VideoDownloadManager.enqueue(
+                                    url = "",
+                                    title = info.title,
+                                    filename = "${info.title}_audio.m4s",
+                                    context = context,
+                                    aid = aid,
+                                    cid = info.cids.firstOrNull() ?: 0L,
+                                    bvid = bvid,
+                                    qn = 16,
+                                    type = "AUDIO_AND_SUBTITLE",
+                                    coverUrl = info.cover.replace("http://", "https://"),
+                                    duration = com.qx.orbit.bili.data.model.StringUtil.parseTime(info.duration)
+                                )
+                                RoundToast.show(context, "正在下载视频...")
+                                showCacheDialog = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+                    ) {
+                        Text("仅音频+字幕")
+                    }
+                }
+            }
         }
     }
 
@@ -213,8 +296,24 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                 viewModel.loadFavoriteFolders()
                                 showFavDialog = true
                             },
-                            onUpClick = { mid ->
-                                navController.navigate("user_space/$mid")
+                            onUpClick = { mid -> navController.navigate("user_space/$mid") },
+                            onCacheClick = {
+                                showCacheDialog = true
+                                if (cacheQualities.isEmpty()) {
+                                    isFetchingQualities = true
+                                    viewModel.viewModelScope.launch {
+                                        val info = videoInfo
+                                        if (info != null) {
+                                            val pd = PlayerApi.getVideo(PlayerData(aid = aid, cid = info.cids.firstOrNull() ?: 0L, qn = 112))
+                                            val names = pd.qnStrList
+                                            val vals = pd.qnValueList
+                                            if (names != null && vals != null && names.size == vals.size) {
+                                                cacheQualities = names.zip(vals.toTypedArray())
+                                            }
+                                        }
+                                        isFetchingQualities = false
+                                    }
+                                }
                             }
                         )
                         1 -> VideoCommentsPage(
@@ -490,6 +589,7 @@ fun VideoInfoPage(
     onLikeClick: () -> Unit,
     onCoinClick: () -> Unit,
     onFavClick: () -> Unit,
+    onCacheClick: () -> Unit,
     onUpClick: (Long) -> Unit
 ) {
     val listState = rememberTransformingLazyColumnState()
@@ -837,6 +937,31 @@ fun VideoInfoPage(
                                 )
                             }
                         }
+                    }
+                }
+                item { Spacer(modifier = Modifier.height(4.dp)) }
+                
+                // Cache Button
+                item {
+                    Button(
+                        onClick = onCacheClick,
+                        modifier = Modifier
+                            .transformedHeight(this, transformationSpec)
+                            .graphicsLayer {
+                                if (isRound) {
+                                    with(transformationSpec) {
+                                        applyContainerTransformation(scrollProgress)
+                                    }
+                                }
+                            }
+                            .fillMaxWidth(),
+                        icon = { Icon(Icons.Default.Download, contentDescription = "Cache", modifier = Modifier.size(24.dp)) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Text("缓存")
                     }
                 }
                 item { Spacer(modifier = Modifier.height(16.dp)) }

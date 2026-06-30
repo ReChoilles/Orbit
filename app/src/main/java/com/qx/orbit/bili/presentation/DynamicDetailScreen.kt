@@ -71,7 +71,7 @@ fun DynamicDetailScreen(
 
     
     val context = LocalContext.current
-    var showImageDialog by remember { mutableStateOf<String?>(null) }
+    var showImageDialog by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
     var showWriteReply by remember { mutableStateOf(false) }
 
     LaunchedEffect(dynamicId) {
@@ -84,11 +84,11 @@ fun DynamicDetailScreen(
     }
 
     if (showImageDialog != null) {
-        var dialogUrl = showImageDialog!!
-        if (!dialogUrl.contains("@")) {
-            dialogUrl = "$dialogUrl@1024w.webp"
-        }
-        ImageViewerDialog(imageUrl = dialogUrl, onDismiss = { showImageDialog = null })
+        ImageViewerDialog(
+            imageUrls = showImageDialog!!.first,
+            initialIndex = showImageDialog!!.second,
+            onDismiss = { showImageDialog = null }
+        )
     }
 
     ScreenScaffold(
@@ -199,17 +199,19 @@ fun DynamicDetailScreen(
                                 }
 
                                 if (item.images.isNotEmpty()) {
-                                    item.images.forEach { imgUrl ->
-                                        val fixedUrl = when {
+                                    val fixedImages = item.images.map { imgUrl ->
+                                        when {
                                             imgUrl.startsWith("//") -> "https:$imgUrl"
                                             imgUrl.startsWith("http://") -> imgUrl.replaceFirst("http://", "https://")
                                             else -> imgUrl
                                         }
+                                    }
+                                    fixedImages.forEachIndexed { index, fixedUrl ->
                                         val finalUrl = if (!fixedUrl.contains("@")) "$fixedUrl@400w.webp" else fixedUrl
                                         AsyncImage(
                                             model = ImageRequest.Builder(context).data(finalUrl).crossfade(true).build(),
                                             contentDescription = null,
-                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).clickable { showImageDialog = fixedUrl },
+                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).clickable { showImageDialog = Pair(fixedImages, index) },
                                             contentScale = ContentScale.FillWidth
                                         )
                                     }
@@ -314,17 +316,19 @@ fun DynamicDetailScreen(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
-                                                forward.images.take(3).forEach { imgUrl ->
-                                                    val fixedImgUrl = when {
+                                                val fixedImages = forward.images.map { imgUrl ->
+                                                    when {
                                                         imgUrl.startsWith("//") -> "https:$imgUrl"
                                                         imgUrl.startsWith("http://") -> imgUrl.replaceFirst("http://", "https://")
                                                         else -> imgUrl
                                                     }
+                                                }
+                                                fixedImages.take(3).forEachIndexed { index, fixedImgUrl ->
                                                     val finalImgUrl = if (!fixedImgUrl.contains("@")) "$fixedImgUrl@360w_360h_1e_1c.webp" else fixedImgUrl
                                                     AsyncImage(
                                                         model = ImageRequest.Builder(context).data(finalImgUrl).crossfade(true).build(),
                                                         contentDescription = null,
-                                                        modifier = Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(4.dp)).clickable { showImageDialog = fixedImgUrl },
+                                                        modifier = Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(4.dp)).clickable { showImageDialog = Pair(fixedImages, index) },
                                                         contentScale = ContentScale.Crop
                                                     )
                                                 }

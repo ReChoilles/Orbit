@@ -164,12 +164,23 @@ fun ArticleContentPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val behavior = RotaryScrollableDefaults.behavior(listState)
-    var showImageDialog by remember { mutableStateOf<String?>(null) }
+    var showImageDialog by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
     val segments = remember(item.content) { parseArticleHtml(item.content) }
     val context = LocalContext.current
 
+    val allImages = remember(segments, item.banner) {
+        val list = mutableListOf<String>()
+        if (item.banner.isNotEmpty()) list.add(fixUrl(item.banner))
+        segments.forEach { if (it is ArticleSegment.Image) list.add(fixUrl(it.url)) }
+        list
+    }
+
     if (showImageDialog != null) {
-        ImageViewerDialog(imageUrl = showImageDialog!!, onDismiss = { showImageDialog = null })
+        ImageViewerDialog(
+            imageUrls = showImageDialog!!.first,
+            initialIndex = showImageDialog!!.second,
+            onDismiss = { showImageDialog = null }
+        )
     }
 
     TransformingLazyColumn(
@@ -225,7 +236,7 @@ fun ArticleContentPage(
                 AsyncImage(
                     model = fixedUrl,
                     contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().height(160.dp).padding(vertical = 4.dp).clickable { showImageDialog = fixedUrl },
+                    modifier = Modifier.fillMaxWidth().height(160.dp).padding(vertical = 4.dp).clickable { showImageDialog = Pair(allImages, 0) },
                     contentScale = ContentScale.Crop
                 )
             }
@@ -238,7 +249,7 @@ fun ArticleContentPage(
                     AsyncImage(
                         model = fixedUrl,
                         contentDescription = null,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { showImageDialog = fixedUrl },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { showImageDialog = Pair(allImages, allImages.indexOf(fixedUrl).takeIf { it >= 0 } ?: 0) },
                         contentScale = ContentScale.Fit
                     )
                 }
