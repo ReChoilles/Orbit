@@ -54,6 +54,8 @@ import androidx.wear.compose.material3.lazy.transformedHeight
 import coil.compose.AsyncImage
 import com.qx.orbit.bili.data.model.ArticleInfo
 import com.qx.orbit.bili.data.model.Reply
+import com.qx.orbit.bili.presentation.ui.components.ImageViewerDialog
+import com.qx.orbit.bili.presentation.ui.components.ReplyCard
 import com.qx.orbit.bili.presentation.ui.components.WysTimeText
 import com.qx.orbit.bili.presentation.ui.components.UserAvatar
 import com.qx.orbit.bili.presentation.ui.components.UserNameText
