@@ -1,5 +1,11 @@
 package com.qx.orbit.bili.presentation
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -10,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -24,6 +31,9 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.api.ReplyApi
 import com.qx.orbit.bili.data.model.Reply
 import com.qx.orbit.bili.presentation.ui.components.ReplyCard
@@ -42,6 +52,8 @@ fun ReplyDetailScreen(
 
     val rootReply by viewModel.rootReply.collectAsState()
     val childReplies by viewModel.childReplies.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
     val focusRequester = remember { FocusRequester() }
@@ -111,25 +123,54 @@ fun ReplyDetailScreen(
                     }
                 }*/
 
-                items(childReplies.size) { index ->
-                    if (index == childReplies.size - 1) {
-                        LaunchedEffect(index) { viewModel.loadMore() }
-                    }
-                    ReplyCard(
-                        reply = childReplies[index],
-                        transformation = SurfaceTransformation(transformationSpec),
-                        modifier = Modifier.animateItem().transformedHeight(this, transformationSpec),
-                        navController = navController,
-                        showReplyPreview = false,
-                        replyType = if (rootReply?.isDynamic == true) ReplyApi.REPLY_TYPE_DYNAMIC_CHILD else ReplyApi.REPLY_TYPE_VIDEO_CHILD,
-                        onRemove = { viewModel.removeReplyLocally(childReplies[index]) },
-                        onLikeClick = { viewModel.likeChildReply(childReplies[index].rpid, childReplies[index].liked) },
-                        onReplyClick = { 
-                            replyTarget = childReplies[index]
-                            viewModel.loadEmotes()
-                            showWriteReply = true
+                if (errorMessage != null && childReplies.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .clickable { viewModel.loadMore() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Image(
+                                    painter = painterResource(R.drawable.bili_2233_fail),
+                                    contentDescription = "Error",
+                                    modifier = Modifier.fillMaxWidth().offset(y = (-15).dp)
+                                )
+                                Text(
+                                    text = "加载失败，点击重试",
+                                    modifier = Modifier.fillMaxWidth().offset(y = (-10).dp),
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         }
-                    )
+                    }
+                } else {
+                    items(childReplies.size) { index ->
+                        if (index == childReplies.size - 1) {
+                            LaunchedEffect(index) { viewModel.loadMore() }
+                        }
+                        val child = childReplies[index]
+                        ReplyCard(
+                            reply = child,
+                            transformation = SurfaceTransformation(transformationSpec),
+                            modifier = Modifier.animateItem().transformedHeight(this, transformationSpec),
+                            navController = navController,
+                            showReplyPreview = false,
+                            isDetail = false,
+                            replyType = if (rootReply?.isDynamic == true) ReplyApi.REPLY_TYPE_DYNAMIC_CHILD else ReplyApi.REPLY_TYPE_VIDEO_CHILD,
+                            onRemove = { viewModel.removeReplyLocally(child) },
+                            onLikeClick = { viewModel.likeChildReply(child.rpid, child.liked) },
+                            onReplyClick = { 
+                                replyTarget = child
+                                viewModel.loadEmotes()
+                                showWriteReply = true 
+                            }
+                        )
+                    }
                 }
                 item { Spacer(Modifier.height(20.dp)) }
             }

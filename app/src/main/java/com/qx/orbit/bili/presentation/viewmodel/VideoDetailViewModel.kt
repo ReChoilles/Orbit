@@ -47,6 +47,9 @@ class VideoDetailViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    private val _replyErrorMessage = MutableStateFlow<String?>(null)
+    val replyErrorMessage: StateFlow<String?> = _replyErrorMessage.asStateFlow()
+
     private val _emotes = MutableStateFlow<List<EmoteApi.EmotePackage>?>(null)
     val emotes: StateFlow<List<EmoteApi.EmotePackage>?> = _emotes.asStateFlow()
 
@@ -88,6 +91,7 @@ class VideoDetailViewModel : ViewModel() {
         if (_isReplyLoading.value) return
         viewModelScope.launch {
             _isReplyLoading.value = true
+            if (reset) _replyErrorMessage.value = null
             try {
                 if (reset) {
                     replyPage = 1
@@ -102,6 +106,7 @@ class VideoDetailViewModel : ViewModel() {
                 replyPage++
             } catch (e: Exception) {
                 e.printStackTrace()
+                _replyErrorMessage.value = e.message ?: "加载评论失败"
             } finally {
                 _isReplyLoading.value = false
             }
@@ -171,6 +176,32 @@ class VideoDetailViewModel : ViewModel() {
                     withContext(Dispatchers.Main) { onResult(true, if (isLiked) "已取消点赞" else "点赞成功") }
                 } else {
                     withContext(Dispatchers.Main) { onResult(false, "点赞失败: 错误码 $result") }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) { onResult(false, e.message ?: "操作异常") }
+            }
+        }
+    }
+    
+    fun doTriple(onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        val info = _videoInfo.value ?: return
+        viewModelScope.launch {
+            try {
+                val result = LikeCoinFavApi.triple(aid)
+                if (result == 0) {
+                    val newStats = info.stats?.copy(
+                        liked = true,
+                        coined = if ((info.stats.coined ?: 0) < 2) (info.stats.coined ?: 0) + 1 else 2,
+                        favoured = true,
+                        like = if (info.stats.liked == true) info.stats.like else info.stats.like + 1,
+                        coin = info.stats.coin + 2,
+                        favorite = if (info.stats.favoured == true) info.stats.favorite else info.stats.favorite + 1
+                    )
+                    _videoInfo.value = info.copy(stats = newStats)
+                    withContext(Dispatchers.Main) { onResult(true, "三连成功") }
+                } else {
+                    withContext(Dispatchers.Main) { onResult(false, "三连失败: 错误码 $result") }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

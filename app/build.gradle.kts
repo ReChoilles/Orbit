@@ -16,7 +16,7 @@ android {
         minSdk = 23
         targetSdk = 36
         versionCode = 4
-        versionName = "0.4.1-Alpha"
+        versionName = "0.4.2-Alpha"
         resValue("string", "app_verCode", versionCode.toString())
         resValue("string", "app_version", versionName.toString())
     }

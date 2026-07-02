@@ -1,10 +1,15 @@
 package com.qx.orbit.bili.presentation
 
 import android.content.Intent
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -21,6 +26,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,6 +73,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
@@ -157,9 +164,12 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
     val replyCount by viewModel.replyCount.collectAsState()
     val relatedVideos by viewModel.relatedVideos.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val replyErrorMessage by viewModel.replyErrorMessage.collectAsState()
     var showCoinDialog by remember { mutableStateOf(false) }
     var showFavDialog by remember { mutableStateOf(false) }
     var showCacheDialog by remember { mutableStateOf(false) }
+    var showTripleSuccessOverlay by remember { mutableStateOf(false) }
     var cacheQualities by remember { mutableStateOf<List<Pair<String, Int>>>(emptyList()) }
     var isFetchingQualities by remember { mutableStateOf(false) }
     
@@ -274,6 +284,28 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
+                } else if (errorMessage != null && videoInfo == null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { viewModel.loadData(bvid, aid) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Image(
+                                painter = painterResource(R.drawable.bili_2233_fail),
+                                contentDescription = "Error",
+                                modifier = Modifier.fillMaxWidth().offset(y = (-15).dp)
+                            )
+                            Text(
+                                text = "加载失败，点击重试",
+                                modifier = Modifier.fillMaxWidth().offset(y = (-10).dp),
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
                 } else {
                 val context = LocalContext.current
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -303,6 +335,15 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                 navController.navigate("player/$encodedJson")
                             },
                             onLikeClick = { viewModel.toggleLike { success, msg -> RoundToast.show(context, msg) } },
+                            onTripleClick = {
+                                viewModel.doTriple { success, msg ->
+                                    if (success) {
+                                        showTripleSuccessOverlay = true
+                                    } else {
+                                        RoundToast.show(context, msg)
+                                    }
+                                }
+                            },
                             onCoinClick = { showCoinDialog = true },
                             onFavClick = { 
                                 viewModel.loadFavoriteFolders()
@@ -331,6 +372,7 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                         1 -> VideoCommentsPage(
                             replies = replies, 
                             replyCount = replyCount,
+                            replyErrorMessage = replyErrorMessage,
                             focusRequester = focusRequesters[1],
                             navController = navController,
                             onLoadMore = { viewModel.loadReplies() },
@@ -592,6 +634,44 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                 }
             }
         }
+        
+        AnimatedVisibility(
+            visible = showTripleSuccessOverlay,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            LaunchedEffect(showTripleSuccessOverlay) {
+                if (showTripleSuccessOverlay) {
+                    delay(3000)
+                    showTripleSuccessOverlay = false
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { showTripleSuccessOverlay = false },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Image(
+                        painter = painterResource(id = R.drawable.bili_2233_heart),
+                        contentDescription = "Triple Success",
+                        modifier = Modifier.height(100.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "三连成功，感谢推荐！",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
 }
 @Composable
 fun VideoInfoPage(
@@ -600,6 +680,7 @@ fun VideoInfoPage(
     focusRequester: FocusRequester,
     onPlayClick: () -> Unit,
     onLikeClick: () -> Unit,
+    onTripleClick: () -> Unit,
     onCoinClick: () -> Unit,
     onFavClick: () -> Unit,
     onCacheClick: () -> Unit,
@@ -873,18 +954,65 @@ fun VideoInfoPage(
                     val likeInteractionSource = remember { MutableInteractionSource() }
                     val coinInteractionSource = remember { MutableInteractionSource() }
                     val favInteractionSource = remember { MutableInteractionSource() }
+                    
+                    val isLikePressed by likeInteractionSource.collectIsPressedAsState()
+                    val tripleProgress = remember { Animatable(0f) }
+                    val view = LocalView.current
+                    
+                    LaunchedEffect(isLikePressed) {
+                        if (isLikePressed) {
+                            delay(300)
+                            tripleProgress.animateTo(
+                                targetValue = 1f,
+                                animationSpec = tween(durationMillis = 3000, easing = LinearEasing)
+                            )
+                            if (tripleProgress.value >= 1f) {
+                                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                delay(80)
+                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                onTripleClick()
+                            }
+                        } else {
+                            if (tripleProgress.value > 0f && tripleProgress.value < 1f) {
+                                tripleProgress.animateTo(
+                                    targetValue = 0f,
+                                    animationSpec = tween(
+                                        durationMillis = (tripleProgress.value * 1000).toInt().coerceAtLeast(100),
+                                        easing = FastOutSlowInEasing
+                                    )
+                                )
+                            } else if (tripleProgress.value >= 1f) {
+                                tripleProgress.snapTo(0f)
+                            }
+                        }
+                    }
+
+                    // Calculate color and shake based on tripleProgress
+                    val p = tripleProgress.value
+                    val amplitude = if (p < 0.9f) 4f * p else 4f * (1f - p) * 10f
+                    val shakeOffset = if (p > 0f && p < 1f) (kotlin.math.sin(p * Math.PI * 50) * amplitude).toFloat().dp else 0.dp
+                    val blendedContainerColor = androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.colorScheme.primary, p)
+                    val blendedContentColor = androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.onSurface, MaterialTheme.colorScheme.onPrimary, p)
 
                     val likeCornerRadius by animateDpAsState(if (isLiked) 16.dp else 26.dp, label = "likeShape")
                     val coinCornerRadius by animateDpAsState(if (isCoined) 16.dp else 26.dp, label = "coinShape")
                     val favCornerRadius by animateDpAsState(if (isFav) 16.dp else 26.dp, label = "favShape")
 
-                    val likeContainerColor by animateColorAsState(if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer, label = "likeColor")
-                    val coinContainerColor by animateColorAsState(if (isCoined) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer, label = "coinColor")
-                    val favContainerColor by animateColorAsState(if (isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer, label = "favColor")
+                    val baseLikeContainerColor by animateColorAsState(if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer, label = "likeColor")
+                    val baseCoinContainerColor by animateColorAsState(if (isCoined) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer, label = "coinColor")
+                    val baseFavContainerColor by animateColorAsState(if (isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer, label = "favColor")
 
-                    val likeContentColor by animateColorAsState(if (isLiked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, label = "likeContentColor")
-                    val coinContentColor by animateColorAsState(if (isCoined) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, label = "coinContentColor")
-                    val favContentColor by animateColorAsState(if (isFav) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, label = "favContentColor")
+                    val baseLikeContentColor by animateColorAsState(if (isLiked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, label = "likeContentColor")
+                    val baseCoinContentColor by animateColorAsState(if (isCoined) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, label = "coinContentColor")
+                    val baseFavContentColor by animateColorAsState(if (isFav) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, label = "favContentColor")
+                    
+                    val likeContainerColor = if (p > 0f && !isLiked) blendedContainerColor else baseLikeContainerColor
+                    val coinContainerColor = if (p > 0f && !isCoined) blendedContainerColor else baseCoinContainerColor
+                    val favContainerColor = if (p > 0f && !isFav) blendedContainerColor else baseFavContainerColor
+                    
+                    val likeContentColor = if (p > 0f && !isLiked) blendedContentColor else baseLikeContentColor
+                    val coinContentColor = if (p > 0f && !isCoined) blendedContentColor else baseCoinContentColor
+                    val favContentColor = if (p > 0f && !isFav) blendedContentColor else baseFavContentColor
 
                     ButtonGroup(
                         modifier = Modifier
@@ -899,7 +1027,7 @@ fun VideoInfoPage(
                             .fillMaxWidth(),
                     ) {
                         FilledIconButton(
-                            onClick = onLikeClick,
+                            onClick = { if (tripleProgress.value == 0f) onLikeClick() },
                             interactionSource = likeInteractionSource,
                             modifier = Modifier.animateWidth(likeInteractionSource).size(52.dp),
                             shapes = IconButtonDefaults.animatedShapes(shape = RoundedCornerShape(likeCornerRadius)),
@@ -909,7 +1037,11 @@ fun VideoInfoPage(
                             )
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(painterResource(id = R.drawable.icon_like_0), contentDescription = "Like")
+                                Icon(
+                                    painterResource(id = R.drawable.icon_like_0), 
+                                    contentDescription = "Like",
+                                    modifier = Modifier.offset(x = shakeOffset, y = shakeOffset)
+                                )
                                 Text(
                                     text = formatCount(videoInfo.stats?.like ?: 0),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp)
@@ -928,7 +1060,11 @@ fun VideoInfoPage(
                             )
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(painterResource(id = R.drawable.icon_coin_0), contentDescription = "Coin")
+                                Icon(
+                                    painterResource(id = R.drawable.icon_coin_0), 
+                                    contentDescription = "Coin",
+                                    modifier = Modifier.offset(x = shakeOffset, y = shakeOffset)
+                                )
                                 Text(
                                     text = formatCount(videoInfo.stats?.coin ?: 0),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp)
@@ -947,7 +1083,11 @@ fun VideoInfoPage(
                             )
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(painterResource(id = R.drawable.icon_fav_0), contentDescription = "Fav")
+                                Icon(
+                                    painterResource(id = R.drawable.icon_fav_0), 
+                                    contentDescription = "Fav",
+                                    modifier = Modifier.offset(x = shakeOffset, y = shakeOffset)
+                                )
                                 Text(
                                     text = formatCount(videoInfo.stats?.favorite ?: 0),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp)
@@ -986,6 +1126,7 @@ fun VideoInfoPage(
 fun VideoCommentsPage(
     replies: List<Reply>, 
     replyCount: Int,
+    replyErrorMessage: String?,
     focusRequester: FocusRequester,
     navController: NavHostController,
     onLoadMore: () -> Unit,
@@ -1024,21 +1165,48 @@ fun VideoCommentsPage(
                     Text("发布评论", style = MaterialTheme.typography.labelMedium)
                 }
             }
-            items(replies.size) { index ->
-                if (index == replies.size - 1) {
-                    LaunchedEffect(index) { onLoadMore() }
+            if (replyErrorMessage != null && replies.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .clickable { onLoadMore() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Image(
+                                painter = painterResource(R.drawable.bili_2233_fail),
+                                contentDescription = "Error",
+                                modifier = Modifier.fillMaxWidth().offset(y = (-15).dp)
+                            )
+                            Text(
+                                text = "加载失败，点击重试",
+                                modifier = Modifier.fillMaxWidth().offset(y = (-10).dp),
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
                 }
-                ReplyCard(
-                    reply = replies[index],
-                    transformation = SurfaceTransformation(transformationSpec),
-                    modifier = Modifier.animateItem().transformedHeight(this, transformationSpec),
-                    navController = navController,
-                    replyType = ReplyApi.REPLY_TYPE_VIDEO,
-                    onRemove = { onRemove(replies[index]) },
-                    onLikeClick = { onLikeClick(replies[index]) },
-                    onClick = { onClick(replies[index]) },
-                    onReplyClick = { onReplyClick(replies[index]) }
-                )
+            } else {
+                items(replies.size) { index ->
+                    if (index == replies.size - 1) {
+                        LaunchedEffect(index) { onLoadMore() }
+                    }
+                    ReplyCard(
+                        reply = replies[index],
+                        transformation = SurfaceTransformation(transformationSpec),
+                        modifier = Modifier.animateItem().transformedHeight(this, transformationSpec),
+                        navController = navController,
+                        replyType = ReplyApi.REPLY_TYPE_VIDEO,
+                        onRemove = { onRemove(replies[index]) },
+                        onLikeClick = { onLikeClick(replies[index]) },
+                        onClick = { onClick(replies[index]) },
+                        onReplyClick = { onReplyClick(replies[index]) }
+                    )
+                }
             }
         }
     }

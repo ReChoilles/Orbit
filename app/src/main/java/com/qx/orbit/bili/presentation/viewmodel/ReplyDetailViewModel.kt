@@ -20,6 +20,9 @@ class ReplyDetailViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
     private var page = 1
     private var oid: Long = 0
     private var rpid: Long = 0
@@ -52,12 +55,14 @@ class ReplyDetailViewModel : ViewModel() {
         if (_isLoading.value || oid == 0L || rpid == 0L) return
         viewModelScope.launch {
             _isLoading.value = true
+            _errorMessage.value = null
             try {
                 val newReplies = ReplyApi.getReplies(oid = oid, rpid = rpid, pageNumber = page, type = childReplyType)
                 _childReplies.value = _childReplies.value + newReplies
                 if (newReplies.isNotEmpty()) page++
             } catch (e: Exception) {
                 e.printStackTrace()
+                _errorMessage.value = e.message ?: "加载评论失败"
             } finally {
                 _isLoading.value = false
             }

@@ -19,8 +19,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.qx.orbit.bili.presentation.ui.components.WysAlertDialog
 import androidx.navigation.NavController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
@@ -593,6 +595,7 @@ fun SettingUIScreen(navController: NavController) {
 
 @Composable
 fun SettingLoginStatusScreen(navController: NavController) {
+    var showLogoutDialog by remember { mutableStateOf(false) }
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
     val context = LocalContext.current
@@ -658,14 +661,7 @@ fun SettingLoginStatusScreen(navController: NavController) {
 
             item {
                 Button(
-                    onClick = {
-                        CookieManager.clearCookie()
-                        RoundToast.show(context, "已退出登录")
-                        val intent = Intent(context, MainActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        context.startActivity(intent)
-                    },
+                    onClick = { showLogoutDialog = true },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
@@ -682,7 +678,40 @@ fun SettingLoginStatusScreen(navController: NavController) {
                     Text(text = "退出登录", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
+            item {
+                Text(
+                    text = "提示：Cookie 为用户的登录凭证，可在 Orbit 中导入 Cookie 登录，便于将当前登录信息迁移到另一台设备；\n导入到另一台设备后，必须在这台设备上退出登录；\n请妥善保存你的 Cookie，不要与他人共享 Cookie，或将其暴露在浏览器或其他客户端代码中。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp)
+                        .transformedHeight(this, transformationSpec)
+                        .graphicsLayer {
+                            with(transformationSpec) {
+                                applyContainerTransformation(scrollProgress)
+                            }
+                        }
+                )
+            }
+            item { Spacer(Modifier.height(12.dp)) }
         }
+        
+        WysAlertDialog(
+            show = showLogoutDialog,
+            onDismissRequest = { showLogoutDialog = false },
+            title = "退出登录",
+            content = { Text("确定要退出当前登录账号吗？", textAlign = TextAlign.Center) },
+            onConfirm = {
+                showLogoutDialog = false
+                CookieManager.clearCookie()
+                RoundToast.show(context, "已退出登录")
+                val intent = Intent(context, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            }
+        )
     }
 }
 

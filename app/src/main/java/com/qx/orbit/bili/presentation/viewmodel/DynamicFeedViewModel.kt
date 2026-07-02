@@ -25,6 +25,9 @@ class DynamicFeedViewModel(application: Application) : AndroidViewModel(applicat
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
     var selectedMid = MutableStateFlow<Long>(0L)
         private set
 
@@ -51,6 +54,7 @@ class DynamicFeedViewModel(application: Application) : AndroidViewModel(applicat
         if (_isRefreshing.value) return
         viewModelScope.launch {
             _isRefreshing.value = true
+            _errorMessage.value = null
             
             // Load UpList
             try {
@@ -74,6 +78,7 @@ class DynamicFeedViewModel(application: Application) : AndroidViewModel(applicat
         if (_isRefreshing.value) return
         viewModelScope.launch {
             _isRefreshing.value = true
+            _errorMessage.value = null
             currentOffset = 0L
             hasMore = true
             loadFeed(isRefresh = true)
@@ -92,6 +97,7 @@ class DynamicFeedViewModel(application: Application) : AndroidViewModel(applicat
 
     private suspend fun loadFeed(isRefresh: Boolean) {
         try {
+            _errorMessage.value = null
             val mid = selectedMid.value
             val offsetStr = if (currentOffset == 0L) "" else currentOffset.toString()
             val res = DynamicApi.getDynamicList(offset = offsetStr, mid = mid, type = 0)
@@ -112,6 +118,7 @@ class DynamicFeedViewModel(application: Application) : AndroidViewModel(applicat
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            _errorMessage.value = e.message ?: "加载失败"
         }
     }
 }

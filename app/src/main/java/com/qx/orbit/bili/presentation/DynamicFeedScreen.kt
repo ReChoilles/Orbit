@@ -79,6 +79,7 @@ fun DynamicFeedScreen(
     val dynamicList by viewModel.dynamicList.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val selectedMid by viewModel.selectedMid.collectAsState()
     val listState = rememberTransformingLazyColumnState()
     val spec = rememberTransformationSpec()
@@ -223,12 +224,38 @@ fun DynamicFeedScreen(
                             CircularProgressIndicator(modifier = Modifier.size(24.dp))
                         }
                     }
-                }
-                item {
-                    LaunchedEffect(Unit) {
-                        viewModel.loadMore()
+                } else if (errorMessage != null) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .clickable { viewModel.loadMore() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Image(
+                                    painter = painterResource(R.drawable.bili_2233_fail),
+                                    contentDescription = "Error",
+                                    modifier = Modifier.fillMaxWidth().offset(y = (-15).dp)
+                                )
+                                Text(
+                                    text = "加载失败，点击重试",
+                                    modifier = Modifier.fillMaxWidth().offset(y = (-10).dp),
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.height(48.dp))
+                } else {
+                    item {
+                        LaunchedEffect(Unit) {
+                            viewModel.loadMore()
+                        }
+                        Spacer(modifier = Modifier.height(48.dp))
+                    }
                 }
             }
         }
