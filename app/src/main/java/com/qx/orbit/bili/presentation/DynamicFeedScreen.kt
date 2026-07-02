@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import com.qx.orbit.bili.presentation.components.rememberSafeRotaryScrollableBehavior
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.CircularProgressIndicator
@@ -121,7 +122,7 @@ fun DynamicFeedScreen(
                 ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxSize()
-            ) {
+            , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
 
             if (upList.isNotEmpty()) {
                 item {

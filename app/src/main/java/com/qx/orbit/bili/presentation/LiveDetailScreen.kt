@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import com.qx.orbit.bili.presentation.components.rememberSafeRotaryScrollableBehavior
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
 import androidx.wear.compose.foundation.rotary.rotaryScrollable
@@ -241,7 +242,7 @@ fun LiveInfoPage(
             state = listState,
             horizontalAlignment = Alignment.CenterHorizontally,
             contentPadding = contentPadding
-        ) {
+        , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 Spacer(modifier = Modifier.height(20.dp))
             }
@@ -462,7 +463,7 @@ fun LiveDanmakuPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    val behavior = RotaryScrollableDefaults.behavior(listState)
+    val behavior = rememberSafeRotaryScrollableBehavior(listState)
     val isRound = LocalConfiguration.current.isScreenRound
 
     ScreenScaffold(scrollState = listState, modifier = Modifier.focusRequester(focusRequester)) { contentPadding ->
@@ -470,7 +471,7 @@ fun LiveDanmakuPage(
             state = listState,
             modifier = Modifier.rotaryScrollable(behavior, focusRequester),
             contentPadding = contentPadding
-        ) {
+        , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader {
                     Text(
@@ -683,7 +684,7 @@ fun LiveRecommendPage(
         TransformingLazyColumn(
             state = listState,
             contentPadding = contentPadding
-        ) {
+        , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader {
                     Text(

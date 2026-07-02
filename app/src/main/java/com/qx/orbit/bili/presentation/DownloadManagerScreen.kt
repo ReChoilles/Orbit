@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import com.qx.orbit.bili.presentation.components.rememberSafeRotaryScrollableBehavior
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.*
@@ -83,7 +84,7 @@ fun DownloadManagerScreen(navController: NavController) {
             TransformingLazyColumn(
                 state = listState,
                 contentPadding = it
-            ) {
+            , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
                 item {
                     ListHeader(
                         modifier = Modifier

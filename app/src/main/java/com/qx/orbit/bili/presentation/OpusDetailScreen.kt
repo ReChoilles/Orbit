@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import com.qx.orbit.bili.presentation.components.rememberSafeRotaryScrollableBehavior
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.foundation.pager.HorizontalPager
 import androidx.wear.compose.foundation.pager.rememberPagerState
@@ -199,7 +200,7 @@ fun OpusContentPage(
 ) {
     val context = LocalContext.current
     val listState = rememberTransformingLazyColumnState()
-    val behavior = RotaryScrollableDefaults.behavior(listState)
+    val behavior = rememberSafeRotaryScrollableBehavior(listState)
     var showImageDialog by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
     
     val likeInteractionSource = remember { MutableInteractionSource() }
@@ -244,7 +245,7 @@ fun OpusContentPage(
             .fillMaxSize()
             .rotaryScrollable(behavior, focusRequester),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 32.dp)
-    ) {
+    , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
         if (item.title.isNotEmpty()) {
             item {
                 androidx.compose.material3.Text(
@@ -473,7 +474,7 @@ fun OpusCommentsPage(
     val isReplyLoading by viewModel.isReplyLoading.collectAsState()
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    val behavior = RotaryScrollableDefaults.behavior(listState)
+    val behavior = rememberSafeRotaryScrollableBehavior(listState)
 
     TransformingLazyColumn(
         state = listState,
@@ -481,7 +482,7 @@ fun OpusCommentsPage(
             .fillMaxSize()
             .rotaryScrollable(behavior, focusRequester),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 32.dp)
-    ) {
+    , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
         item {
             ListHeader {
                 Text("评论区")

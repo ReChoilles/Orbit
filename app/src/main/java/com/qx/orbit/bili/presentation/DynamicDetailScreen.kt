@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import com.qx.orbit.bili.presentation.components.rememberSafeRotaryScrollableBehavior
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
 import androidx.wear.compose.foundation.rotary.rotaryScrollable
@@ -65,7 +66,7 @@ fun DynamicDetailScreen(
 
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    val behavior = RotaryScrollableDefaults.behavior(listState)
+    val behavior = rememberSafeRotaryScrollableBehavior(listState)
     val focusRequester = remember { FocusRequester() }
     
     
@@ -110,7 +111,7 @@ fun DynamicDetailScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize().rotaryScrollable(behavior, focusRequester),
                     contentPadding = contentPadding
-                ) {
+                , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
                     item {
                         ListHeader(
                             modifier = Modifier.transformedHeight(this, transformationSpec),

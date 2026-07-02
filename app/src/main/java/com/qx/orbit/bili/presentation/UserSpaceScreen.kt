@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import com.qx.orbit.bili.presentation.components.rememberSafeRotaryScrollableBehavior
 import androidx.wear.compose.foundation.lazy.itemsIndexed
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.Card
@@ -157,7 +158,7 @@ fun UserDynamicsPage(
             state = listState,
             contentPadding = contentPadding,
             modifier = Modifier.fillMaxSize()
-        ) {
+        , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 userInfo?.let { info ->
                     Column(
@@ -273,7 +274,7 @@ fun UserVideosPage(
             state = listState,
             contentPadding = contentPadding,
             modifier = Modifier.fillMaxSize()
-        ) {
+        , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader {
                     Text(text = "发布的视频")
@@ -317,7 +318,7 @@ fun UserArticlesPage(
             state = listState,
             contentPadding = contentPadding,
             modifier = Modifier.fillMaxSize()
-        ) {
+        , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader {
                     Text(text = "发布的图文")
