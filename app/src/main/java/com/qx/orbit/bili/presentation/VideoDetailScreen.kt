@@ -111,6 +111,7 @@ import com.qx.orbit.bili.data.api.ReplyApi
 import com.qx.orbit.bili.data.api.UserInfoApi
 import com.qx.orbit.bili.data.model.PlayerData
 import com.qx.orbit.bili.data.model.Reply
+import com.qx.orbit.bili.data.model.StringUtil
 import com.qx.orbit.bili.data.model.VideoCard
 import com.qx.orbit.bili.data.model.VideoInfo
 import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
@@ -122,7 +123,7 @@ import com.qx.orbit.bili.presentation.ui.components.UserNameText
 import com.qx.orbit.bili.presentation.viewmodel.VideoDetailViewModel
 import com.qx.orbit.bili.util.SharedPreferencesUtil
 import com.qx.orbit.bili.util.formatCount
-import com.qx.orbit.bili.utils.VideoDownloadManager
+import com.qx.orbit.bili.util.VideoDownloadManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
@@ -207,7 +208,7 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                     qn = qn,
                                     type = "MP4",
                                     coverUrl = info.cover.replace("http://", "https://"),
-                                    duration = com.qx.orbit.bili.data.model.StringUtil.parseTime(info.duration)
+                                    duration = StringUtil.parseTime(info.duration)
                                 )
                                 RoundToast.show(context, "正在下载视频...")
                                 showCacheDialog = false
@@ -236,7 +237,7 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                     qn = 16,
                                     type = "AUDIO_AND_SUBTITLE",
                                     coverUrl = info.cover.replace("http://", "https://"),
-                                    duration = com.qx.orbit.bili.data.model.StringUtil.parseTime(info.duration)
+                                    duration = StringUtil.parseTime(info.duration)
                                 )
                                 RoundToast.show(context, "正在下载视频...")
                                 showCacheDialog = false

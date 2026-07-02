@@ -32,7 +32,7 @@ import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.qx.orbit.bili.utils.VideoDownloadManager
+import com.qx.orbit.bili.util.VideoDownloadManager
 import java.io.File
 
 @SuppressLint("DefaultLocale")

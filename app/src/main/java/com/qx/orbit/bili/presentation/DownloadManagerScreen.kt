@@ -29,7 +29,7 @@ import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.PlayerData
 import com.qx.orbit.bili.presentation.ui.components.CacheVideoCard
 import com.qx.orbit.bili.presentation.ui.components.WysAlertDialog
-import com.qx.orbit.bili.utils.VideoDownloadManager
+import com.qx.orbit.bili.util.VideoDownloadManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers

@@ -126,7 +126,7 @@ import com.qx.orbit.bili.presentation.viewmodel.TabMode
 import com.qx.orbit.bili.presentation.viewmodel.UserSpaceViewModel
 import com.qx.orbit.bili.util.SharedPreferencesUtil
 import com.qx.orbit.bili.util.ShizukuUtils
-import com.qx.orbit.bili.utils.VideoDownloadManager
+import com.qx.orbit.bili.util.VideoDownloadManager
 import rikka.shizuku.Shizuku
 import kotlin.math.roundToInt
 

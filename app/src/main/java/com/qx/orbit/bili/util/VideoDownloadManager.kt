@@ -1,14 +1,15 @@
-package com.qx.orbit.bili.utils
+package com.qx.orbit.bili.util
 
 import android.app.DownloadManager
 import android.content.Context
-import android.net.Uri
+import android.media.MediaMetadataRetriever
 import android.os.Environment
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.qx.orbit.bili.data.api.DanmakuApi
 import com.qx.orbit.bili.data.api.PlayerApi
+import com.qx.orbit.bili.data.model.DanmakuElem
 import com.qx.orbit.bili.data.model.PlayerData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,6 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.math.ceil
-import android.media.MediaMetadataRetriever
 
 object VideoDownloadManager {
     private val client = OkHttpClient.Builder()
@@ -38,7 +38,7 @@ object VideoDownloadManager {
     private val activeCalls = mutableMapOf<Long, Call>()
     private var nextId = 1L
     private const val TASKS_FILE = "video_download_tasks.json"
-    
+
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun init(context: Context) {
@@ -47,7 +47,10 @@ object VideoDownloadManager {
     }
 
     private fun getDownloadDir(bvid: String? = null): File {
-        val baseDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Orbit")
+        val baseDir = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
+            "Orbit"
+        )
         val dir = if (!bvid.isNullOrEmpty()) File(baseDir, bvid) else baseDir
         if (!dir.exists()) dir.mkdirs()
         return dir
@@ -59,7 +62,7 @@ object VideoDownloadManager {
             if (!baseDir.exists()) return
 
             val activeFiles = downloads.values.map { it.filename }.toSet()
-            
+
             val filesToScan = mutableListOf<File>()
             val baseFiles = baseDir.listFiles() ?: arrayOf()
             for (f in baseFiles) {
@@ -76,7 +79,7 @@ object VideoDownloadManager {
                     if (!activeFiles.contains(f.name)) {
                         val id = nextId++
                         val title = f.nameWithoutExtension
-                        
+
                         var durationSecs = 0
                         try {
                             val retriever = MediaMetadataRetriever()
@@ -85,7 +88,7 @@ object VideoDownloadManager {
                             retriever.release()
                             durationSecs = ((time?.toLongOrNull() ?: 0L) / 1000).toInt()
                         } catch (e: Exception) { }
-                        
+
                         val info = DownloadInfo(
                             id = id,
                             url = "",
@@ -133,7 +136,7 @@ object VideoDownloadManager {
                     var restored = if (it.status == DownloadManager.STATUS_RUNNING || it.status == DownloadManager.STATUS_PENDING) {
                         it.copy(status = DownloadManager.STATUS_FAILED, reason = -3)
                     } else it
-                    
+
                     if (restored.duration == 0 && restored.localUri != null && File(restored.localUri).exists()) {
                         try {
                             val retriever = MediaMetadataRetriever()
@@ -146,7 +149,7 @@ object VideoDownloadManager {
                             }
                         } catch (e: Exception) {}
                     }
-                    
+
                     downloads[it.id] = restored
                     if (it.id >= nextId) nextId = it.id + 1
                 }
@@ -204,7 +207,7 @@ object VideoDownloadManager {
         executeDownload(id, context)
         return id
     }
-    
+
     fun resume(id: Long, context: Context) {
         val existing = downloads[id] ?: return
         if (existing.status != DownloadManager.STATUS_RUNNING && existing.status != DownloadManager.STATUS_PENDING && existing.status != DownloadManager.STATUS_SUCCESSFUL) {
@@ -244,7 +247,7 @@ object VideoDownloadManager {
         val requestBuilder = Request.Builder().url(url)
             .addHeader("Referer", "https://www.bilibili.com")
             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.95 Safari/537.36")
-            
+
         if (existingLength > 0) {
             requestBuilder.header("Range", "bytes=$existingLength-")
         }
@@ -269,7 +272,7 @@ object VideoDownloadManager {
                     }
                     return
                 }
-                
+
                 if (!response.isSuccessful && response.code != 206) {
                     downloads[id] = downloads[id]?.copy(status = DownloadManager.STATUS_FAILED, reason = response.code) ?: return
                     persistTasks(context)
@@ -314,12 +317,12 @@ object VideoDownloadManager {
                     }
                     downloads[id] = downloads[id]?.copy(status = DownloadManager.STATUS_SUCCESSFUL, localUri = file.absolutePath) ?: return
                     persistTasks(context)
-                    
+
                     // Trigger post download actions (danmaku, subtitle)
                     scope.launch {
                         downloadDanmakuAndSubtitle(id, context)
                     }
-                    
+
                 } catch (e: Exception) {
                     downloads[id] = downloads[id]?.copy(status = DownloadManager.STATUS_FAILED, reason = -2) ?: return
                     persistTasks(context)
@@ -327,7 +330,7 @@ object VideoDownloadManager {
             }
         })
     }
-    
+
     private suspend fun refreshUrlAndRetry(id: Long, context: Context) {
         val info = downloads[id] ?: return
         val playerReq = PlayerData(
@@ -339,7 +342,7 @@ object VideoDownloadManager {
         } else {
             PlayerApi.getVideo(playerReq).videoUrl
         }
-        
+
         if (refreshed.isNotEmpty() && refreshed != info.url) {
             downloads[id] = info.copy(url = refreshed)
             persistTasks(context)
@@ -349,7 +352,7 @@ object VideoDownloadManager {
             persistTasks(context)
         }
     }
-    
+
     private suspend fun downloadDanmakuAndSubtitle(id: Long, context: Context) {
         val info = downloads[id] ?: return
         try {
@@ -357,14 +360,14 @@ object VideoDownloadManager {
             val danmakuFile = File(downloadDir, "${info.filename}.danmaku.xml")
             if (!danmakuFile.exists()) {
                 val segments = ceil(info.duration / 360.0).toInt().coerceAtLeast(1)
-                val allElems = mutableListOf<com.qx.orbit.bili.data.model.DanmakuElem>()
+                val allElems = mutableListOf<DanmakuElem>()
                 for (i in 1..segments) {
                     val seg = DanmakuApi.getVideoDanmakuSegment(info.aid, info.cid, i)
                     if (seg != null) {
                         allElems.addAll(seg.elems)
                     }
                 }
-                
+
                 val xmlBuilder = StringBuilder()
                 xmlBuilder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<i>\n")
                 xmlBuilder.append("<chatserver>chat.bilibili.com</chatserver>\n")
@@ -374,7 +377,7 @@ object VideoDownloadManager {
                 xmlBuilder.append("<state>0</state>\n")
                 xmlBuilder.append("<real_name>0</real_name>\n")
                 xmlBuilder.append("<source>k-v</source>\n")
-                
+
                 for (elem in allElems) {
                     // p="progress(s),mode,fontsize,color,timestamp,pool,hash,rowId"
                     val p = "${elem.progress / 1000f},${elem.mode},${elem.fontsize},${elem.color},${elem.ctime},0,${elem.midHash},${elem.id}"
@@ -384,7 +387,7 @@ object VideoDownloadManager {
                 xmlBuilder.append("</i>")
                 danmakuFile.writeText(xmlBuilder.toString())
             }
-            
+
             if (info.type == "AUDIO_AND_SUBTITLE") {
                 val subLinks = PlayerApi.getSubtitleLinks(info.aid, info.cid)
                 if (subLinks.isNotEmpty()) {
@@ -403,7 +406,7 @@ object VideoDownloadManager {
                     }
                 }
             }
-            
+
             if (info.coverUrl.isNotEmpty()) {
                 val coverFile = File(downloadDir, "${info.filename}.cover.webp")
                 if (!coverFile.exists()) {
@@ -433,16 +436,16 @@ object VideoDownloadManager {
             val downloadDir = getDownloadDir(info.bvid)
             val file = File(downloadDir, info.filename)
             if (file.exists()) file.delete()
-            
+
             val danmakuFile = File(downloadDir, "${info.filename}.danmaku.xml")
             if (danmakuFile.exists()) danmakuFile.delete()
-            
+
             val subtitleFile = File(downloadDir, "${info.filename}.srt")
             if (subtitleFile.exists()) subtitleFile.delete()
 
             downloads.remove(id)
             persistTasks(context)
-            
+
             // Cleanup empty bvid directory
             if (downloadDir.name == info.bvid && downloadDir.listFiles()?.isEmpty() == true) {
                 downloadDir.delete()
