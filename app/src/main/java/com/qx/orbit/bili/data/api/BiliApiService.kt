@@ -275,10 +275,11 @@ interface BiliApiService {
 
     // ===== Favorite =====
 
-    @GET("https://api.bilibili.com/x/v3/fav/folder/created/list-all")
+    @GET("https://api.bilibili.com/x/v3/fav/folder/created/list")
     suspend fun getFavFolders(
-        @Query("type") type: Int,
-        @Query("up_mid") upMid: Long
+        @Query("up_mid") upMid: Long,
+        @Query("pn") pn: Int,
+        @Query("ps") ps: Int
     ): Result<JsonElement>
 
     @GET("https://api.bilibili.com/x/v3/fav/folder/collected/list")
@@ -294,6 +295,15 @@ interface BiliApiService {
         @Query("fid") fid: Long,
         @Query("pn") pn: Int,
         @Query("ps") ps: Int = 30
+    ): Result<JsonElement>
+
+    @GET("https://api.bilibili.com/x/v3/fav/resource/list")
+    suspend fun getFavVideosV3(
+        @Query("media_id") mediaId: Long,
+        @Query("pn") pn: Int,
+        @Query("ps") ps: Int = 20,
+        @Query("keyword") keyword: String = "",
+        @Query("platform") platform: String = "web"
     ): Result<JsonElement>
 
     // ===== Live =====

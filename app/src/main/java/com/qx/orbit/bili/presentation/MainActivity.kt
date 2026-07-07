@@ -336,9 +336,18 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
                     val followListViewModel: FollowListViewModel = viewModel()
                     FollowListScreen(viewModel = followListViewModel, navController = navController)
                 }
+                composable("favorite_folders") {
+                    val favoriteFolderViewModel: com.qx.orbit.bili.presentation.viewmodel.FavoriteFolderViewModel = viewModel()
+                    FavoriteFoldersScreen(viewModel = favoriteFolderViewModel, navController = navController)
+                }
+                composable("favorite_detail/{fid}/{mid}") { backStackEntry ->
+                    val fid = backStackEntry.arguments?.getString("fid")?.toLongOrNull() ?: 0L
+                    val favoriteDetailViewModel: com.qx.orbit.bili.presentation.viewmodel.FavoriteDetailViewModel = viewModel()
+                    FavoriteDetailScreen(viewModel = favoriteDetailViewModel, navController = navController, fid = fid)
+                }
                 composable("history") {
                     val historyViewModel: com.qx.orbit.bili.presentation.viewmodel.HistoryViewModel = viewModel()
-                    com.qx.orbit.bili.presentation.HistoryScreen(viewModel = historyViewModel, navController = navController)
+                    HistoryScreen(viewModel = historyViewModel, navController = navController)
                 }
                 composable("reply_detail") {
                     val reply = navController.previousBackStackEntry?.savedStateHandle?.get<Reply>("reply")
@@ -665,6 +674,26 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                     Icon(Icons.Default.Movie, modifier = Modifier.size(20.dp), contentDescription = "追番列表")
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("追番")
+                                }
+                            }
+                            item {
+                                Button(
+                                    onClick = {
+                                        showTabMenu = false
+                                        navController.navigate("favorite_folders")
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .transformedHeight(this, menuTransformationSpec),
+                                    transformation = SurfaceTransformation(menuTransformationSpec)
+                                ) {
+                                    Icon(Icons.Default.Favorite, modifier = Modifier.size(20.dp), contentDescription = "我的收藏")
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("收藏")
                                 }
                             }
                             item {

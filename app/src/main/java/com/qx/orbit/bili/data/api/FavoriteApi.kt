@@ -17,16 +17,7 @@ object FavoriteApi {
 
     private val api by lazy { BiliApiService.create() }
 
-    internal data class FavFolderListData(
-        @SerializedName("list") val list: List<FavFolderItem>? = null
-    )
 
-    internal data class FavFolderItem(
-        @SerializedName("fav_box") val fav_box: Long = 0,
-        @SerializedName("name") val name: String? = null,
-        @SerializedName("cur_count") val cur_count: Int = 0,
-        @SerializedName("max_count") val max_count: Int = 0
-    )
 
     internal data class V3FavFolderData(
         @SerializedName("list") val list: List<V3FavFolderItem>? = null
@@ -43,6 +34,16 @@ object FavoriteApi {
     internal data class FavFolderVideosData(
         @SerializedName("count") val count: Int = 0,
         @SerializedName("medias") val medias: List<FavArchiveItem>? = null
+    )
+
+    internal data class V3FavFolderVideosData(
+        @SerializedName("info") val info: V3FavFolderInfo? = null,
+        @SerializedName("medias") val medias: List<FavArchiveItem>? = null,
+        @SerializedName("has_more") val has_more: Boolean = false
+    )
+
+    internal data class V3FavFolderInfo(
+        @SerializedName("media_count") val media_count: Int = 0
     )
 
     internal data class FavArchiveItem(
@@ -118,27 +119,19 @@ object FavoriteApi {
     )
 
     suspend fun getFavoriteFolders(mid: Long): List<FavoriteFolder> = withContext(Dispatchers.IO) {
-        val v2List = try {
-            val json = httpGet("https://api.bilibili.com/space.bilibili.com/ajax/fav/getBoxList?mid=$mid")
-            val resp: ApiResponse<FavFolderListData>? = GsonConfig.gson.fromJson(json, object : TypeToken<ApiResponse<FavFolderListData>>() {}.type)
-            resp?.data?.list?.filterNotNull()?.map {
-                FavoriteFolder(id = it.fav_box, mediaId = it.fav_box, name = it.name ?: "", videoCount = it.cur_count, maxCount = it.max_count, isDefault = it.fav_box == mid)
-            } ?: emptyList()
-        } catch (_: Exception) { emptyList() }
-
         val v3List = try {
-            when (val resp = api.getFavFolders(2, mid)) {
+            when (val resp = api.getFavFolders(mid, 1, 50)) {
                 is Result.Success -> {
                     val parsed: ApiResponse<V3FavFolderData>? = GsonConfig.gson.fromJson(resp.data, object : TypeToken<ApiResponse<V3FavFolderData>>() {}.type)
                     parsed?.data?.list?.filterNotNull()?.map {
-                        FavoriteFolder(id = it.id, mediaId = it.id, name = it.title ?: "", cover = it.cover ?: "", videoCount = it.media_count, isDefault = it.attr and 1 == 1)
+                        FavoriteFolder(id = it.id, mediaId = it.id, name = it.title ?: "", cover = (it.cover ?: "").replace("http://", "https://"), videoCount = it.media_count, isDefault = it.attr and 1 == 1)
                     } ?: emptyList()
                 }
                 is Result.Error -> emptyList()
             }
         } catch (_: Exception) { emptyList() }
 
-        (v2List + v3List).sortedByDescending { it.isDefault }
+        v3List.sortedByDescending { it.isDefault }
     }
 
     suspend fun getFavoritedCollections(mid: Long, page: Int): Pair<Boolean, List<BiliCollection>> = withContext(Dispatchers.IO) {
@@ -148,7 +141,7 @@ object FavoriteApi {
                 if (parsed == null || !parsed.isSuccess || parsed.data == null) return@withContext Pair(false, emptyList())
                 val hasMore = parsed.data.list != null && parsed.data.list.size >= 20
                 val collections = parsed.data.list?.filterNotNull()?.map {
-                    BiliCollection(id = it.id, title = it.title ?: "", mid = it.mid, cover = it.cover ?: "", view = it.media_count.toString())
+                    BiliCollection(id = it.id, title = it.title ?: "", mid = it.mid, cover = (it.cover ?: "").replace("http://", "https://"), view = it.media_count.toString())
                 } ?: emptyList()
                 Pair(hasMore, collections)
             }
@@ -162,11 +155,25 @@ object FavoriteApi {
                 val parsed: ApiResponse<FavFolderVideosData>? = GsonConfig.gson.fromJson(resp.data, object : TypeToken<ApiResponse<FavFolderVideosData>>() {}.type)
                 if (parsed == null || !parsed.isSuccess || parsed.data == null) return@withContext Pair(0, emptyList())
                 val videos = parsed.data.medias?.filterNotNull()?.map {
-                    VideoCard(title = it.title ?: "", upName = it.upper?.name ?: "", view = StringUtil.toWan(it.cnt_info?.play?.toLong() ?: 0), cover = it.cover ?: "", aid = it.id, bvid = it.bv_id ?: "")
+                    VideoCard(title = it.title ?: "", upName = it.upper?.name ?: "", view = StringUtil.toWan(it.cnt_info?.play?.toLong() ?: 0), cover = (it.cover ?: "").replace("http://", "https://"), aid = it.id, bvid = it.bv_id ?: "")
                 } ?: emptyList()
                 Pair(parsed.data.count, videos)
             }
             is Result.Error -> Pair(0, emptyList())
+        }
+    }
+
+    suspend fun getFolderVideosV3(fid: Long, page: Int, keyword: String = ""): Pair<Boolean, List<VideoCard>> = withContext(Dispatchers.IO) {
+        when (val resp = api.getFavVideosV3(mediaId = fid, pn = page, keyword = keyword)) {
+            is Result.Success -> {
+                val parsed: ApiResponse<V3FavFolderVideosData>? = GsonConfig.gson.fromJson(resp.data, object : TypeToken<ApiResponse<V3FavFolderVideosData>>() {}.type)
+                if (parsed == null || !parsed.isSuccess || parsed.data == null) return@withContext Pair(false, emptyList())
+                val videos = parsed.data.medias?.filterNotNull()?.map {
+                    VideoCard(title = it.title ?: "", upName = it.upper?.name ?: "", view = StringUtil.toWan(it.cnt_info?.play?.toLong() ?: 0), cover = (it.cover ?: "").replace("http://", "https://"), aid = it.id, bvid = it.bv_id ?: "")
+                } ?: emptyList()
+                Pair(parsed.data.has_more, videos)
+            }
+            is Result.Error -> Pair(false, emptyList())
         }
     }
 
