@@ -52,6 +52,7 @@ import com.qx.orbit.bili.presentation.ui.components.RoundToast
 import androidx.compose.ui.platform.LocalContext
 import com.google.gson.Gson
 import android.content.Intent
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.wear.compose.material3.SurfaceTransformation
 import com.qx.orbit.bili.presentation.MainActivity
@@ -115,14 +116,10 @@ fun SettingsScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "内置播放器设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -135,14 +132,10 @@ fun SettingsScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "界面设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -155,14 +148,10 @@ fun SettingsScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "偏好设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -175,14 +164,10 @@ fun SettingsScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "关于软件", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -273,14 +258,10 @@ fun SettingPreferenceScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "偏好设置", color = MaterialTheme.colorScheme.primary)
                 }
@@ -304,14 +285,10 @@ fun SettingPreferenceScreen(navController: NavController) {
                             overflow = TextOverflow.Ellipsis
                         )
                     },
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 )
             }
             item {
@@ -332,14 +309,10 @@ fun SettingPreferenceScreen(navController: NavController) {
                             overflow = TextOverflow.Ellipsis
                         )
                     },
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 )
             }
 
@@ -410,14 +383,10 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "内置播放器设置", color = MaterialTheme.colorScheme.primary)
                 }
@@ -445,14 +414,10 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "播放器自定义", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -483,14 +448,10 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     val label = qualityOptions[currentIndex].second
                     Text(text = "视频清晰度: $label", maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -526,16 +487,12 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
                             SharedPreferencesUtil.putBoolean(key, isChecked)
                         },
                         label = {
-                            Text(text = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(text = label, maxLines = 1, modifier = Modifier.basicMarquee())
                         },
+                        transformation = SurfaceTransformation(transformationSpec),
                         modifier = Modifier
                             .fillMaxWidth()
                             .transformedHeight(this, transformationSpec)
-                            .graphicsLayer {
-                                with(transformationSpec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                            }
                     )
                 }
             }
@@ -592,14 +549,10 @@ fun SettingUIScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "界面设置", color = MaterialTheme.colorScheme.primary)
                 }
@@ -616,14 +569,10 @@ fun SettingUIScreen(navController: NavController) {
                     label = {
                         Text(text = "沉浸式时间显示", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     },
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 )
             }
         }
@@ -651,14 +600,10 @@ fun SettingLoginStatusScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "登录状态管理", color = MaterialTheme.colorScheme.primary)
                 }
@@ -685,14 +630,10 @@ fun SettingLoginStatusScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "导出 Cookie", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -714,14 +655,10 @@ fun SettingLoginStatusScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     if (isRefreshing) {
                         CircularProgressIndicator(
@@ -742,14 +679,10 @@ fun SettingLoginStatusScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
                     ),
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "退出登录", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -804,7 +737,7 @@ private data class CookieExportItem(
 fun SettingVideoRenderScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    var useTextureView by remember { mutableStateOf(SharedPreferencesUtil.getBoolean("player_texture_view", false)) }
+    var useTextureView by remember { mutableStateOf(SharedPreferencesUtil.getBoolean("player_texture_view", true)) }
 
     ScreenScaffold(
         scrollState = listState,
@@ -818,14 +751,10 @@ fun SettingVideoRenderScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
+                    transformation = SurfaceTransformation(transformationSpec),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
                 ) {
                     Text(text = "视频渲染", color = MaterialTheme.colorScheme.primary)
                 }
@@ -903,7 +832,7 @@ fun SettingVideoRenderScreen(navController: NavController) {
 
             item {
                 Text(
-                    text = "如果视频播放异常/闪退/黑屏/绿屏/无法缩放，请尝试切换该选项",
+                    text = "如果视频播放异常/闪退/黑屏/绿屏/比例异常，请尝试切换该选项",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier

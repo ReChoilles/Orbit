@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text as Material3Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +32,7 @@ import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import com.qx.orbit.bili.data.api.EmoteApi
 import kotlinx.coroutines.delay
@@ -52,7 +52,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.platform.LocalView
 import android.view.inputmethod.InputMethodManager
+import androidx.wear.compose.material3.lazy.rememberTransformationSpec
+import androidx.wear.compose.material3.lazy.transformedHeight
+import com.qx.orbit.bili.presentation.ui.components.ImagePickerScreen
 import kotlin.math.max
+
+const val IMAGE_CHAR = '\uE000'
+const val IMAGE_TEXT = "[图片]"
 
 @Composable
 fun WriteReplyScreen(
@@ -60,7 +66,8 @@ fun WriteReplyScreen(
     targetName: String?,
     emotes: List<EmoteApi.EmotePackage>?,
     isLive: Boolean = false,
-    onSend: (String) -> Unit,
+    isDynamic: Boolean = false,
+    onSend: (String, List<java.io.File>?) -> Unit,
     onSendEmote: (String) -> Unit = {},
     onClose: () -> Unit
 ) {
@@ -68,6 +75,8 @@ fun WriteReplyScreen(
     var isSending by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     var isFocused by remember { mutableStateOf(false) }
+    var selectedImages by remember { mutableStateOf<List<java.io.File>?>(null) }
+    var showImagePicker by remember { mutableStateOf(false) }
     // 持有 Dialog 内部 View 的引用
     var dialogView by remember { mutableStateOf<android.view.View?>(null) }
 
@@ -101,7 +110,7 @@ fun WriteReplyScreen(
         val listState = rememberTransformingLazyColumnState()
         val pagerState = rememberPagerState(pageCount = { emotes?.size ?: 0 })
         val focusRequester = remember { FocusRequester() }
-
+        val transformationSpec = rememberTransformationSpec()
         // 捕获 Dialog 自己的 View
         val currentDialogView = LocalView.current
         SideEffect { dialogView = currentDialogView }
@@ -136,6 +145,7 @@ fun WriteReplyScreen(
             try { focusRequester.requestFocus() } catch (e: Exception) {}
         }
 
+
         ScreenScaffold(
             scrollState = listState,
             modifier = Modifier.focusRequester(focusRequester)
@@ -151,8 +161,11 @@ fun WriteReplyScreen(
                     contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp, start = 16.dp, end = 16.dp)
                 , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
                     item {
-                        ListHeader {
-                            Text(if (targetName.isNullOrEmpty()) "发布评论" else "回复 @$targetName", color = MaterialTheme.colorScheme.primary)
+                        ListHeader(
+                            modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+                            transformation = SurfaceTransformation(transformationSpec)
+                        ) {
+                            Text(if (isDynamic) "发布动态" else if (targetName.isNullOrEmpty()) "发布评论" else "回复 @$targetName", color = MaterialTheme.colorScheme.primary)
                         }
                     }
 
@@ -164,8 +177,8 @@ fun WriteReplyScreen(
                                 value = text,
                                 onValueChange = { text = it },
                                 placeholder = {
-                                    Material3Text(
-                                        "写下你的评论",
+                                    Text(
+                                        if (isDynamic) "有什么想和大家分享的？" else "写下你的评论",
                                         color = MaterialTheme.colorScheme.outline
                                     )
                                 },
@@ -193,11 +206,15 @@ fun WriteReplyScreen(
                                 visualTransformation = { annotatedString ->
                                     val expandedText = buildString {
                                         for (char in annotatedString.text) {
-                                            val emoteName = EmoteMapper.getNameForChar(char)
-                                            if (emoteName != null) {
-                                                append(emoteName)
+                                            if (char == IMAGE_CHAR) {
+                                                append(IMAGE_TEXT)
                                             } else {
-                                                append(char)
+                                                val emoteName = EmoteMapper.getNameForChar(char)
+                                                if (emoteName != null) {
+                                                    append(emoteName)
+                                                } else {
+                                                    append(char)
+                                                }
                                             }
                                         }
                                     }
@@ -210,11 +227,11 @@ fun WriteReplyScreen(
                                             var visualOffset = 0
                                             for (i in 0 until offset.coerceAtMost(annotatedString.text.length)) {
                                                 val char = annotatedString.text[i]
-                                                val emoteName = EmoteMapper.getNameForChar(char)
-                                                if (emoteName != null) {
-                                                    visualOffset += emoteName.length
+                                                visualOffset += if (char == IMAGE_CHAR) {
+                                                    IMAGE_TEXT.length
                                                 } else {
-                                                    visualOffset += 1
+                                                    val emoteName = EmoteMapper.getNameForChar(char)
+                                                    emoteName?.length ?: 1
                                                 }
                                             }
                                             return visualOffset
@@ -227,12 +244,20 @@ fun WriteReplyScreen(
                                             while (originalOffset < textLen) {
                                                 if (visualOffset >= offset) break
                                                 val char = annotatedString.text[originalOffset]
-                                                val emoteName = EmoteMapper.getNameForChar(char)
-                                                val len = emoteName?.length ?: 1
-                                                if (visualOffset + len > offset) {
-                                                    return if (offset - visualOffset > len / 2) originalOffset + 1 else originalOffset
+                                                if (char == IMAGE_CHAR) {
+                                                    val len = IMAGE_TEXT.length
+                                                    if (visualOffset + len > offset) {
+                                                        return if (offset - visualOffset > len / 2) originalOffset + 1 else originalOffset
+                                                    }
+                                                    visualOffset += len
+                                                } else {
+                                                    val emoteName = EmoteMapper.getNameForChar(char)
+                                                    val len = emoteName?.length ?: 1
+                                                    if (visualOffset + len > offset) {
+                                                        return if (offset - visualOffset > len / 2) originalOffset + 1 else originalOffset
+                                                    }
+                                                    visualOffset += len
                                                 }
-                                                visualOffset += len
                                                 originalOffset++
                                             }
                                             return originalOffset
@@ -242,46 +267,64 @@ fun WriteReplyScreen(
                                     TransformedText(richText, offsetMapping)
                                 }
                             )
-                            FilledIconButton(
-                                onClick = {
-                                    if (text.text.isNotEmpty()) {
-                                        isSending = true
-                                        hideKeyboard()
-                                        if (isLive) {
-                                            val decoded = EmoteMapper.decode(text.text)
-                                            val allEmotes = emotes?.flatMap { it.emotes } ?: emptyList()
-                                            val emoteMap = allEmotes.associateBy { EmoteMapper.getCharForName(it.name) }
-                                            val chars = text.text.toList()
-                                            val allPanel = chars.isNotEmpty() && chars.all { emoteMap.containsKey(it) }
-                                            val onlyEmote = if (allPanel) emoteMap[chars.first()] else null
-                                            val sendLiveEmote = onlyEmote != null && isSpecialLiveEmote(onlyEmote.emoticonUnique)
-                                            android.util.Log.d("WriteReplySend", "text=${text.text} decoded=$decoded allPanel=$allPanel sendLiveEmote=$sendLiveEmote")
-                                            if (sendLiveEmote) {
-                                                onSendEmote(onlyEmote.emoticonUnique)
-                                            } else {
-                                                onSend(decoded)
-                                            }
-                                        } else {
-                                            onSend(EmoteMapper.decode(text.text))
-                                        }
-                                        text = TextFieldValue("")
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isDynamic || targetName.isNullOrEmpty()) {
+                                    FilledIconButton(
+                                        onClick = { showImagePicker = true },
+                                        modifier = Modifier.size(48.dp),
+                                        colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface),
+                                        shapes = IconButtonDefaults.animatedShapes()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Add,
+                                            contentDescription = "Select Image",
+                                            modifier = Modifier.size(24.dp)
+                                        )
                                     }
-                                },
-                                modifier = Modifier.size(48.dp),
-                                colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
-                                shapes = IconButtonDefaults.animatedShapes()
-                            ) {
-                                if (isSending) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Filled.Edit,
-                                        contentDescription = "Send",
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                FilledIconButton(
+                                    onClick = {
+                                        if (text.text.isNotEmpty()) {
+                                            isSending = true
+                                            hideKeyboard()
+                                            if (isLive) {
+                                                val decoded = EmoteMapper.decode(text.text)
+                                                val allEmotes = emotes?.flatMap { it.emotes } ?: emptyList()
+                                                val emoteMap = allEmotes.associateBy { EmoteMapper.getCharForName(it.name) }
+                                                val chars = text.text.toList()
+                                                val allPanel = chars.isNotEmpty() && chars.all { emoteMap.containsKey(it) }
+                                                val onlyEmote = if (allPanel) emoteMap[chars.first()] else null
+                                                val sendLiveEmote = onlyEmote != null && isSpecialLiveEmote(onlyEmote.emoticonUnique)
+                                                android.util.Log.d("WriteReplySend", "text=${text.text} decoded=$decoded allPanel=$allPanel sendLiveEmote=$sendLiveEmote")
+                                                if (sendLiveEmote) {
+                                                    onSendEmote(onlyEmote.emoticonUnique)
+                                                } else {
+                                                    onSend(decoded.replace(IMAGE_CHAR.toString(), ""), selectedImages)
+                                                }
+                                            } else {
+                                                onSend(EmoteMapper.decode(text.text).replace(IMAGE_CHAR.toString(), ""), selectedImages)
+                                            }
+                                            text = TextFieldValue("")
+                                            selectedImages = null
+                                        }
+                                    },
+                                    modifier = Modifier.size(48.dp),
+                                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
+                                    shapes = IconButtonDefaults.animatedShapes()
+                                ) {
+                                    if (isSending) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Filled.Edit,
+                                            contentDescription = "Send Reply",
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -402,7 +445,7 @@ fun WriteReplyScreen(
                         Spacer(modifier = Modifier.height(48.dp))
                     }
                 }
-                if (emotes != null && emotes.isNotEmpty()) {
+                if (!emotes.isNullOrEmpty()) {
                     HorizontalPageIndicator(
                         pagerState = pagerState,
                         modifier = Modifier
@@ -412,6 +455,23 @@ fun WriteReplyScreen(
                 }
             }
         }
+    }
+
+    Dialog(
+        visible = showImagePicker,
+        onDismissRequest = { showImagePicker = false },
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        ImagePickerScreen(
+            onImagesSelected = { files ->
+                selectedImages = files
+                val appendText = String(CharArray(files.size) { IMAGE_CHAR })
+                val newText = text.text + appendText
+                text = TextFieldValue(newText, TextRange(newText.length))
+                showImagePicker = false
+            },
+            onBack = { showImagePicker = false }
+        )
     }
 }
 
@@ -497,30 +557,34 @@ fun parseRichTextForInput(
     text: String,
     emotes: Map<String, EmoteApi.Emote>
 ): androidx.compose.ui.text.AnnotatedString {
-    val processedText = text
     val urlPattern = "(https?://[^\\s<>()\\[\\]\"',;!?]+|www\\.[^\\s<>()\\[\\]\"',;!?]+)"
     val videoPattern = "(?i)(bv[A-Za-z0-9]+|av\\d+)"
     val fullPattern = Regex("($urlPattern|$videoPattern)")
     
     return androidx.compose.ui.text.buildAnnotatedString {
-        if (emotes.isEmpty() && !processedText.contains(fullPattern)) {
-            append(processedText)
+        if (emotes.isEmpty() && !text.contains(fullPattern)) {
+            append(text)
             return@buildAnnotatedString
         }
         
-        val parts = processedText.split(fullPattern)
-        val matches = fullPattern.findAll(processedText).toList()
+        val parts = text.split(fullPattern)
+        val matches = fullPattern.findAll(text).toList()
         
         for (i in parts.indices) {
             val part = parts[i]
             if (part.isNotEmpty()) {
-                if (emotes.isNotEmpty()) {
+                if (emotes.isNotEmpty() || part.contains(IMAGE_TEXT)) {
                     val emotePattern = "\\[[^]]+]".toRegex()
                     var lastIdx = 0
                     for (emoteMatch in emotePattern.findAll(part)) {
                         val emoteKey = emoteMatch.value
                         val emote = emotes[emoteKey]
-                        if (emote != null) {
+                        if (emoteKey == IMAGE_TEXT) {
+                            append(part.substring(lastIdx, emoteMatch.range.first))
+                            withStyle(SpanStyle(color = Color(0xFFFB7299))) {
+                                append(emoteKey)
+                            }
+                        } else if (emote != null) {
                             append(part.substring(lastIdx, emoteMatch.range.first))
                             withStyle(SpanStyle(color = Color(0xFF00A0D8))) {
                                 append(emoteKey)

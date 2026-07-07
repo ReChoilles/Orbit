@@ -234,7 +234,7 @@ fun LiveDetailScreen(
             targetName = null,
             emotes = emotes,
             isLive = true,
-            onSend = { text ->
+            onSend = { text, _ ->
                 viewModel.sendDanmaku(text, roomId) { ok, msg ->
                     if (ok) {
                         showWriteReply = false

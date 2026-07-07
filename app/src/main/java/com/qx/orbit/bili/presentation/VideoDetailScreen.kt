@@ -143,6 +143,7 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
     }
     
     val context = LocalContext.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     val videoInfo by viewModel.videoInfo.collectAsState()
     val tags by viewModel.tags.collectAsState()
@@ -439,9 +440,10 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
         visible = showWriteReply,
         targetName = replyTarget?.sender?.name,
         emotes = emotes,
-        onSend = { text ->
+        onSend = { text, images ->
             viewModel.sendReply(
                 text = text,
+                images = images,
                 root = replyTarget?.root?.takeIf { it > 0 } ?: replyTarget?.rpid ?: 0L,
                 parent = replyTarget?.rpid ?: 0L,
                 onSuccess = {
@@ -716,7 +718,8 @@ fun VideoInfoPage(
     val transformationSpec = rememberTransformationSpec()
     val isRound = LocalConfiguration.current.isScreenRound
     var isDescExpanded by remember { mutableStateOf(false) }
-
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     ScreenScaffold(scrollState = listState, modifier = Modifier.focusRequester(focusRequester)) { contentPadding ->
         TransformingLazyColumn(
             state = listState,
@@ -914,7 +917,13 @@ fun VideoInfoPage(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        Row(verticalAlignment = Alignment.CenterVertically){
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(videoInfo.bvid))
+                                RoundToast.show(context, "已复制BV号: ${videoInfo.bvid}")
+                            }
+                        ){
                             Icon(
                                 imageVector = Icons.Filled.Movie,
                                 contentDescription = "Views",

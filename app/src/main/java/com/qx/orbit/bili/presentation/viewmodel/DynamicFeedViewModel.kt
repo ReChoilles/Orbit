@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.qx.orbit.bili.data.api.DynamicApi
 import com.qx.orbit.bili.data.api.UserInfoApi
 import com.qx.orbit.bili.data.model.Dynamic
+import com.qx.orbit.bili.data.api.EmoteApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +16,9 @@ class DynamicFeedViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _upList = MutableStateFlow<List<DynamicApi.UpInfo>>(emptyList())
     val upList: StateFlow<List<DynamicApi.UpInfo>> = _upList.asStateFlow()
+
+    private val _liveList = MutableStateFlow<List<DynamicApi.LiveUserItem>>(emptyList())
+    val liveList: StateFlow<List<DynamicApi.LiveUserItem>> = _liveList.asStateFlow()
 
     private val _dynamicList = MutableStateFlow<List<Dynamic>>(emptyList())
     val dynamicList: StateFlow<List<Dynamic>> = _dynamicList.asStateFlow()
@@ -34,8 +38,44 @@ class DynamicFeedViewModel(application: Application) : AndroidViewModel(applicat
     private var currentOffset = 0L
     private var hasMore = true
 
+    var emotes = MutableStateFlow<List<EmoteApi.EmotePackage>?>(null)
+        private set
+
     init {
         refresh()
+        loadEmotes()
+    }
+
+    private fun loadEmotes() {
+        viewModelScope.launch {
+            try {
+                emotes.value = EmoteApi.getEmotes(business = "dynamic")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun publishDynamic(
+        text: String,
+        images: List<java.io.File>? = null,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val success = DynamicApi.publishDynamic(text, emotes.value, images)
+                if (success) {
+                    onSuccess()
+                    refresh() // Refresh the feed to show the new dynamic
+                } else {
+                    onError("发布失败")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError(e.message ?: "发布出错")
+            }
+        }
     }
 
     fun selectUp(mid: Long) {
@@ -58,9 +98,10 @@ class DynamicFeedViewModel(application: Application) : AndroidViewModel(applicat
             
             // Load UpList
             try {
-                val list = DynamicApi.getRecentUpList()
+                val pair = DynamicApi.getRecentUpList()
                 // Sort list: has_update true first
-                _upList.value = list.sortedByDescending { it.has_update }
+                _upList.value = pair.first.sortedByDescending { it.has_update }
+                _liveList.value = pair.second
             } catch (e: Exception) {
                 e.printStackTrace()
             }

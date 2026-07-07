@@ -159,7 +159,8 @@ interface BiliApiService {
         @Field("parent") parent: Long,
         @Field("message") message: String,
         @Field("type") type: Int,
-        @Field("csrf") csrf: String
+        @Field("csrf") csrf: String,
+        @Field("pictures") pictures: String? = null
     ): Result<JsonElement>
 
     @FormUrlEncoded

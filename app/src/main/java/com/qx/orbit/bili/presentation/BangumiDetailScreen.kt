@@ -288,7 +288,7 @@ fun BangumiDetailScreen(navController: NavHostController, mediaId: Long, viewMod
         visible = showWriteReply,
         targetName = replyTarget?.sender?.name,
         emotes = emotes,
-        onSend = { text ->
+        onSend = { text, _ ->
             viewModel.sendReply(
                 text = text,
                 root = replyTarget?.root?.takeIf { it > 0 } ?: replyTarget?.rpid ?: 0L,

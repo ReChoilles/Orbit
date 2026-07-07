@@ -452,7 +452,7 @@ fun DynamicDetailScreen(
         visible = showWriteReply,
         targetName = null,
         emotes = emotes,
-        onSend = { text ->
+        onSend = { text, _ ->
             viewModel.sendReply(
                 text = text,
                 onSuccess = { showWriteReply = false },

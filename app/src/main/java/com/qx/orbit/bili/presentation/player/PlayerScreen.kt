@@ -194,7 +194,7 @@ fun PlayerScreen(
 
     var videoWidth by remember { mutableFloatStateOf(16f) }
     var videoHeight by remember { mutableFloatStateOf(9f) }
-    val useTextureView = remember { SharedPreferencesUtil.getBoolean("player_texture_view", false) }
+    val useTextureView = remember { SharedPreferencesUtil.getBoolean("player_texture_view", true) }
 
     LaunchedEffect(interactionCounter) {
         showControls = true
@@ -724,6 +724,15 @@ fun PlayerScreen(
                                         val dy = ptr.position.y - lastY
                                         val zoomFactor = 1f + dy * 0.005f
                                         scale = (scale * zoomFactor).coerceIn(1f, 5f)
+                                        if (scale > 1f) {
+                                            val maxX = (size.width * (scale - 1)) / 2f
+                                            val maxY = (size.height * (scale - 1)) / 2f
+                                            offsetX = offsetX.coerceIn(-maxX, maxX)
+                                            offsetY = offsetY.coerceIn(-maxY, maxY)
+                                        } else {
+                                            offsetX = 0f
+                                            offsetY = 0f
+                                        }
                                         lastY = ptr.position.y
                                         ptr.consume()
                                     }

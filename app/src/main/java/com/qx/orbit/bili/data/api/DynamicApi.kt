@@ -13,7 +13,9 @@ import com.google.gson.JsonParser
 import okhttp3.FormBody
 import okhttp3.Request
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import com.qx.orbit.bili.data.model.Emote
 import com.qx.orbit.bili.util.formatBiliTime
 
@@ -34,7 +36,20 @@ object DynamicApi {
     )
 
     internal data class PortalData(
-        @SerializedName("up_list") val up_list: List<UpInfo>? = null
+        @SerializedName("up_list") val up_list: List<UpInfo>? = null,
+        @SerializedName("live_users") val live_users: LiveUsersData? = null
+    )
+
+    internal data class LiveUsersData(
+        @SerializedName("items") val items: List<LiveUserItem>? = null
+    )
+
+    data class LiveUserItem(
+        @SerializedName("face") val face: String = "",
+        @SerializedName("room_id") val room_id: Long = 0,
+        @SerializedName("title") val title: String = "",
+        @SerializedName("mid") val mid: Long = 0,
+        @SerializedName("uname") val uname: String = ""
     )
 
     internal data class DynamicIdData(
@@ -209,6 +224,75 @@ object DynamicApi {
         @SerializedName("comment_type") val comment_type: Int = 0
     )
 
+    data class PublishDynReq(
+        @SerializedName("dyn_req") val dyn_req: DynReq
+    )
+
+    data class DynReq(
+        @SerializedName("content") val content: DynContent,
+        @SerializedName("scene") val scene: Int = 1,
+        @SerializedName("pics") val pics: List<DynPicItem>? = null
+    )
+
+    data class DynPicItem(
+        @SerializedName("img_src") val img_src: String,
+        @SerializedName("img_width") val img_width: Int,
+        @SerializedName("img_height") val img_height: Int,
+        @SerializedName("img_size") val img_size: Double
+    )
+
+    data class UploadImageResponse(
+        @SerializedName("image_url") val image_url: String,
+        @SerializedName("image_width") val image_width: Int,
+        @SerializedName("image_height") val image_height: Int,
+        @SerializedName("img_size") val img_size: Double
+    )
+
+    data class DynContent(
+        @SerializedName("contents") val contents: List<DynContentItem>
+    )
+
+    data class DynContentItem(
+        @SerializedName("raw_text") val raw_text: String,
+        @SerializedName("type") val type: Int,
+        @SerializedName("biz_id") val biz_id: String
+    )
+
+    internal data class CreateDynData(
+        @SerializedName("dyn_id_str") val dyn_id_str: String? = null
+    )
+
+    suspend fun uploadImageBFS(file: java.io.File): UploadImageResponse? = withContext(Dispatchers.IO) {
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "file_up",
+                file.name,
+                file.asRequestBody("image/*".toMediaTypeOrNull())
+            )
+            .addFormDataPart("category", "daily")
+            .addFormDataPart("biz", "new_dyn")
+            .addFormDataPart("csrf", CookieManager.getCsrf())
+            .build()
+            
+        val request = Request.Builder()
+            .url("https://api.bilibili.com/x/dynamic/feed/draw/upload_bfs")
+            .post(requestBody)
+            .addHeader("Cookie", CookieManager.getCookie())
+            .addHeader("User-Agent", USER_AGENT)
+            .build()
+            
+        try {
+            val json = HttpClient.client.newCall(request).execute().body?.string() ?: return@withContext null
+            val type = object : TypeToken<ApiResponse<UploadImageResponse>>() {}.type
+            val resp: ApiResponse<UploadImageResponse>? = GsonConfig.gson.fromJson(json, type)
+            if (resp == null || !resp.isSuccess) null else resp.data
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     suspend fun publishTextContent(content: String): Long = withContext(Dispatchers.IO) {
         val body = FormBody.Builder()
             .add("dynamic_id", "0")
@@ -228,6 +312,70 @@ object DynamicApi {
         val type = object : TypeToken<ApiResponse<DynamicIdData>>() {}.type
         val resp: ApiResponse<DynamicIdData>? = GsonConfig.gson.fromJson(json, type)
         if (resp == null || !resp.isSuccess || resp.data == null) -1L else resp.data.dynamic_id
+    }
+
+    suspend fun publishDynamic(text: String, emotes: List<EmoteApi.EmotePackage>?, images: List<java.io.File>? = null): Boolean = withContext(Dispatchers.IO) {
+        val contents = mutableListOf<DynContentItem>()
+        var currentText = ""
+        val flatEmotes = emotes?.flatMap { it.emotes }?.associateBy { it.name } ?: emptyMap()
+        
+        for (char in text) {
+            val emoteName = com.qx.orbit.bili.presentation.EmoteMapper.getNameForChar(char)
+            if (emoteName != null) {
+                if (currentText.isNotEmpty()) {
+                    contents.add(DynContentItem(raw_text = currentText, type = 1, biz_id = ""))
+                    currentText = ""
+                }
+                val emoteId = flatEmotes[emoteName]?.id?.toString() ?: ""
+                contents.add(DynContentItem(raw_text = emoteName, type = 2, biz_id = emoteId))
+            } else {
+                currentText += char
+            }
+        }
+        if (currentText.isNotEmpty()) {
+            contents.add(DynContentItem(raw_text = currentText, type = 1, biz_id = ""))
+        }
+        
+        val uploadedPics = images?.mapNotNull { file ->
+            uploadImageBFS(file)?.let { uploadResp ->
+                DynPicItem(
+                    img_src = uploadResp.image_url,
+                    img_width = uploadResp.image_width,
+                    img_height = uploadResp.image_height,
+                    img_size = uploadResp.img_size
+                )
+            }
+        }?.takeIf { it.isNotEmpty() }
+        
+        val reqData = PublishDynReq(
+            dyn_req = DynReq(
+                content = DynContent(contents = contents),
+                scene = if (uploadedPics.isNullOrEmpty()) 1 else 2,
+                pics = uploadedPics
+            )
+        )
+        val jsonStr = GsonConfig.gson.toJson(reqData)
+        val body = jsonStr.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+        
+        val csrf = CookieManager.getCsrf()
+        val url = "https://api.bilibili.com/x/dynamic/feed/create/dyn?csrf=$csrf"
+        
+        val request = Request.Builder()
+            .url(url)
+            .post(body)
+            .addHeader("Cookie", CookieManager.getCookie())
+            .addHeader("User-Agent", USER_AGENT)
+            .addHeader("Referer", "https://t.bilibili.com/")
+            .build()
+            
+        try {
+            val responseJson = HttpClient.client.newCall(request).execute().body?.string() ?: return@withContext false
+            val obj = JsonParser.parseString(responseJson).asJsonObject
+            obj.get("code")?.asInt == 0
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 
     suspend fun likeDynamic(dyid: String, up: Boolean): Int = withContext(Dispatchers.IO) {
@@ -326,12 +474,14 @@ object DynamicApi {
         resp?.data?.update_num ?: 0
     }
 
-    suspend fun getRecentUpList(): List<UpInfo> = withContext(Dispatchers.IO) {
+    suspend fun getRecentUpList(): Pair<List<UpInfo>, List<LiveUserItem>> = withContext(Dispatchers.IO) {
         val url = "https://api.bilibili.com/x/polymer/web-dynamic/v1/portal"
         val json = httpGet(url)
         val type = object : TypeToken<ApiResponse<PortalData>>() {}.type
         val resp: ApiResponse<PortalData>? = GsonConfig.gson.fromJson(json, type)
-        resp?.data?.up_list ?: emptyList()
+        val upList = resp?.data?.up_list ?: emptyList()
+        val liveUsers = resp?.data?.live_users?.items ?: emptyList()
+        Pair(upList, liveUsers)
     }
 
     suspend fun clearUpUpdate(mid: Long) = withContext(Dispatchers.IO) {

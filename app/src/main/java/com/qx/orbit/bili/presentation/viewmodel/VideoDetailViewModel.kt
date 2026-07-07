@@ -299,7 +299,7 @@ class VideoDetailViewModel : ViewModel() {
         }
     }
 
-    fun sendReply(text: String, root: Long, parent: Long, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun sendReply(text: String, images: List<java.io.File>? = null, root: Long, parent: Long, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
                 val (code, reply) = ReplyApi.sendReply(
@@ -307,7 +307,8 @@ class VideoDetailViewModel : ViewModel() {
                     root = root,
                     parent = parent,
                     text = text,
-                    type = ReplyApi.REPLY_TYPE_VIDEO
+                    type = ReplyApi.REPLY_TYPE_VIDEO,
+                    images = images
                 )
                 if (code == 0) {
                     if (reply != null) {

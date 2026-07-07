@@ -2,6 +2,7 @@ package com.qx.orbit.bili.presentation
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.runtime.Composable
@@ -38,6 +40,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -48,19 +51,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
+import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
+import androidx.compose.material.icons.filled.Edit
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
+import coil.compose.AsyncImage
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.presentation.theme.BiliPink
 import com.qx.orbit.bili.presentation.ui.components.DynamicCard
@@ -76,9 +84,12 @@ fun DynamicFeedScreen(
     onTabClick: () -> Unit
 ) {
     val upList by viewModel.upList.collectAsState()
+    val liveList by viewModel.liveList.collectAsState()
     val dynamicList by viewModel.dynamicList.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    var showWriteDynamic by remember { androidx.compose.runtime.mutableStateOf(false) }
+    val emotes by viewModel.emotes.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val selectedMid by viewModel.selectedMid.collectAsState()
     val listState = rememberTransformingLazyColumnState()
@@ -122,11 +133,93 @@ fun DynamicFeedScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxSize()
             , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
+                
+                item {
+                    Button(
+                        onClick = { showWriteDynamic = true },
+                        modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                        transformation = SurfaceTransformation(spec),
+                        icon = { Icon(imageVector = Icons.Filled.Edit, contentDescription = null) },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("发布动态", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+
+                if (liveList.isNotEmpty()) {
+                    item {
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                .transformedHeight(this, spec)
+                                .graphicsLayer {
+                                    with(spec) {
+                                        applyContainerTransformation(scrollProgress)
+                                    }
+                                },
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(liveList) { liveUser ->
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.clickable { navController.navigate("live_room/${liveUser.room_id}") }
+                                ) {
+                                    Box(modifier = Modifier.size(56.dp)) {
+                                        UserAvatar(
+                                            avatarUrl = liveUser.face,
+                                            officialRole = 0,
+                                            modifier = Modifier
+                                                .size(56.dp)
+                                                .border(2.dp, BiliPink, CircleShape)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .offset(y = 4.dp)
+                                                .background(BiliPink, RoundedCornerShape(50))
+                                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                AsyncImage(
+                                                    model = R.drawable.ic_live_comm_live_ing,
+                                                    modifier = Modifier.height(12.dp),
+                                                    contentDescription = null
+                                                )
+                                                Text(
+                                                    text = "直播中",
+                                                    color = Color.White,
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = liveUser.uname,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onBackground,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1,
+                                        modifier = Modifier.width(56.dp).basicMarquee()
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
 
             if (upList.isNotEmpty()) {
                 item {
                     LazyRow(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                            .transformedHeight(this, spec)
+                            .graphicsLayer {
+                                with(spec) {
+                                    applyContainerTransformation(scrollProgress)
+                                }
+                            },
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -142,7 +235,6 @@ fun DynamicFeedScreen(
                                         contentDescription = "all",
                                         modifier = Modifier
                                             .size(56.dp)
-                                            //.clip(CircleShape)
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -167,7 +259,7 @@ fun DynamicFeedScreen(
                                             modifier = Modifier
                                                 .size(8.dp)
                                                 .align(Alignment.TopEnd)
-                                                .offset(x = 1.dp, y = (-1).dp)
+                                                .offset(x = 1.dp, y = 0.dp)
                                                 .background(BiliPink, CircleShape)
                                         )
                                     }
@@ -287,4 +379,20 @@ fun DynamicFeedScreen(
             }
         }
     }
+    
+    WriteReplyScreen(
+        visible = showWriteDynamic,
+        targetName = null,
+        emotes = emotes,
+        isDynamic = true,
+        onSend = { text, images ->
+            viewModel.publishDynamic(
+                text = text,
+                images = images,
+                onSuccess = { showWriteDynamic = false },
+                onError = { showWriteDynamic = false }
+            )
+        },
+        onClose = { showWriteDynamic = false }
+    )
 }

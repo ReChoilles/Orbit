@@ -224,9 +224,23 @@ object ReplyApi {
         root: Long = 0,
         parent: Long = 0,
         text: String,
-        type: Int = REPLY_TYPE_VIDEO
+        type: Int = REPLY_TYPE_VIDEO,
+        images: List<java.io.File>? = null
     ): Pair<Int, Reply?> = withContext(Dispatchers.IO) {
-        val jsonElement = when (val result = api.sendReply(oid, root, parent, text, type, CookieManager.getCsrf())) {
+        val uploadedPics = images?.mapNotNull { file ->
+            DynamicApi.uploadImageBFS(file)?.let { uploadResp ->
+                DynamicApi.DynPicItem(
+                    img_src = uploadResp.image_url,
+                    img_width = uploadResp.image_width,
+                    img_height = uploadResp.image_height,
+                    img_size = uploadResp.img_size
+                )
+            }
+        }?.takeIf { it.isNotEmpty() }
+        
+        val picturesJson = if (uploadedPics != null) GsonConfig.gson.toJson(uploadedPics) else null
+        
+        val jsonElement = when (val result = api.sendReply(oid, root, parent, text, type, CookieManager.getCsrf(), picturesJson)) {
             is Result.Success -> result.data
             is Result.Error -> return@withContext Pair(result.exception.code, null)
         }

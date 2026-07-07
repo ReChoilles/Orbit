@@ -185,7 +185,7 @@ fun OpusDetailScreen(
                     visible = showWriteReply,
                     targetName = replyTarget?.sender?.name,
                     emotes = emotes,
-                    onSend = { text ->
+                    onSend = { text, _ ->
                         viewModel.sendReply(text, replyTarget)
                         showWriteReply = false
                     },
