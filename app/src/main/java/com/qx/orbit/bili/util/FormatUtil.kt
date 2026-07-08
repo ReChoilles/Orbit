@@ -7,3 +7,11 @@ fun formatCount(count: Int): String {
         count.toString()
     }
 }
+
+fun String.fixCoverUrl(): String {
+    return when {
+        this.startsWith("//") -> "https:$this"
+        this.startsWith("http://") -> this.replaceFirst("http://", "https://")
+        else -> this
+    }.replace(".avif", ".webp")
+}

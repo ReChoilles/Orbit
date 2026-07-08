@@ -26,7 +26,8 @@ data class PlayerData(
     val aids: List<Long> = emptyList(),
     val currentPageIndex: Int = 0,
     val dashData: DashData? = null,
-    val audioUrl: String = ""
+    val audioUrl: String = "",
+    val cover: String = ""
 ) {
     companion object {
         const val TYPE_VIDEO = 0

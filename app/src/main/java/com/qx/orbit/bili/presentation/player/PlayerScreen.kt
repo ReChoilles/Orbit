@@ -3,8 +3,16 @@ package com.qx.orbit.bili.presentation.player
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
 import android.graphics.SurfaceTexture
 import android.media.AudioManager
+import android.media.MediaMetadata
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.util.Log
 import android.view.Gravity
 import android.view.Surface
@@ -12,6 +20,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.TextureView
 import android.widget.FrameLayout
+import coil.imageLoader
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -75,6 +84,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.wear.compose.material.dialog.Dialog
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.Icon
@@ -94,6 +106,7 @@ import com.qx.orbit.bili.data.model.PlayerData
 import com.qx.orbit.bili.data.remote.CookieManager
 import com.qx.orbit.bili.presentation.ui.components.findActivity
 import com.qx.orbit.bili.presentation.viewmodel.EmoteInline
+import com.qx.orbit.bili.service.PlayerForegroundService
 import com.qx.orbit.bili.util.SharedPreferencesUtil
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -158,6 +171,8 @@ fun PlayerScreen(
 
     var isPrepared by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
+    var isAudioOnlyMode by remember { mutableStateOf(false) }
+    var switchPendingSeekMs by remember { mutableLongStateOf(-1L) }
     var showControls by remember { mutableStateOf(true) }
     var interactionCounter by remember { mutableIntStateOf(0) }
     var currentProgress by remember { mutableLongStateOf(0L) }
@@ -183,6 +198,197 @@ fun PlayerScreen(
     val mediaPlayer = remember { IjkMediaPlayer() }
     val danmakuView = remember { DanmakuView(context) }
     var danmakuContext by remember { mutableStateOf<DanmakuContext?>(null) }
+
+    val mediaSession = remember {
+        MediaSession(context, "OrbitPlayer").apply {
+            isActive = true
+        }
+    }
+
+    val audioFocusListener = remember { AudioManager.OnAudioFocusChangeListener { } }
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(audioFocusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(audioFocusListener)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val callback = object : MediaSession.Callback() {
+            override fun onPlay() {
+                mediaPlayer.start()
+                danmakuView.resume()
+                isPlaying = true
+            }
+
+            override fun onPause() {
+                mediaPlayer.pause()
+                danmakuView.pause()
+                isPlaying = false
+            }
+
+            override fun onSeekTo(pos: Long) {
+                mediaPlayer.seekTo(pos)
+                danmakuView.seekTo(pos)
+                currentProgress = pos
+            }
+            
+            override fun onSkipToNext() {
+                if (playerData.currentPageIndex + 1 < playerData.cids.size) {
+                    val nextIndex = playerData.currentPageIndex + 1
+                    val nextAid = if (playerData.aids.size > nextIndex) playerData.aids[nextIndex] else playerData.aid
+                    val nextCid = playerData.cids[nextIndex]
+                    val nextEpid = if (playerData.epids.size > nextIndex) playerData.epids[nextIndex] else playerData.epid
+                    val nextTitle = if (playerData.pagenames.size > nextIndex) playerData.pagenames[nextIndex] else playerData.title
+                    playerData = playerData.copy(
+                        currentPageIndex = nextIndex,
+                        aid = nextAid,
+                        cid = nextCid,
+                        epid = nextEpid,
+                        title = nextTitle,
+                        progress = 0
+                    )
+                }
+            }
+            
+            override fun onSkipToPrevious() {
+                if (playerData.currentPageIndex - 1 >= 0) {
+                    val prevIndex = playerData.currentPageIndex - 1
+                    val prevAid = if (playerData.aids.size > prevIndex) playerData.aids[prevIndex] else playerData.aid
+                    val prevCid = playerData.cids[prevIndex]
+                    val prevEpid = if (playerData.epids.size > prevIndex) playerData.epids[prevIndex] else playerData.epid
+                    val prevTitle = if (playerData.pagenames.size > prevIndex) playerData.pagenames[prevIndex] else playerData.title
+                    playerData = playerData.copy(
+                        currentPageIndex = prevIndex,
+                        aid = prevAid,
+                        cid = prevCid,
+                        epid = prevEpid,
+                        title = prevTitle,
+                        progress = 0
+                    )
+                }
+            }
+        }
+        mediaSession.setCallback(callback)
+        onDispose {
+            val stopIntent = Intent(context, PlayerForegroundService::class.java).apply {
+                action = "STOP"
+            }
+            try {
+                context.startService(stopIntent)
+            } catch (e: Exception) {}
+            
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.cancel(1001)
+            mediaSession.isActive = false
+            mediaSession.release()
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(audioFocusListener)
+        }
+    }
+
+    LaunchedEffect(isPlaying, isPrepared, playbackSpeed, playerData.title, totalDuration) {
+        if (isPrepared) {
+            val metadataBuilder = MediaMetadata.Builder()
+                .putString(MediaMetadata.METADATA_KEY_TITLE, playerData.title)
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, "Orbit")
+                .putString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE, playerData.title)
+                .putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, "Orbit")
+                .putString(MediaMetadata.METADATA_KEY_ALBUM, "Orbit")
+                .putLong(MediaMetadata.METADATA_KEY_DURATION, totalDuration)
+                
+            if (playerData.cover.isNotEmpty()) {
+                try {
+                    val request = coil.request.ImageRequest.Builder(context)
+                        .data(playerData.cover)
+                        .size(512)
+                        .build()
+                    val result = context.imageLoader.execute(request)
+                    if (result is coil.request.SuccessResult) {
+                        val drawable = result.drawable
+                        val bitmap = if (drawable is android.graphics.drawable.BitmapDrawable) {
+                            drawable.bitmap
+                        } else null
+                        if (bitmap != null) {
+                            metadataBuilder.putBitmap(MediaMetadata.METADATA_KEY_ART, bitmap)
+                            metadataBuilder.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, bitmap)
+                        }
+                    }
+                } catch (e: Exception) {}
+            }
+            mediaSession.setMetadata(metadataBuilder.build())
+
+            val state = if (isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
+            val playbackState = PlaybackState.Builder()
+                .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_SEEK_TO)
+                .setState(state, currentProgress, playbackSpeed)
+                .build()
+            mediaSession.setPlaybackState(playbackState)
+            
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val channel = NotificationChannel("orbit_player", "播放控制", NotificationManager.IMPORTANCE_LOW)
+                notificationManager.createNotificationChannel(channel)
+            }
+            val activityClass = context.findActivity()?.javaClass
+            val pendingIntent = if (activityClass != null) {
+                val intent = Intent(context, activityClass).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+                PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+            } else null
+            
+            val builder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                Notification.Builder(context, "orbit_player")
+            } else {
+                @Suppress("DEPRECATION")
+                Notification.Builder(context)
+            }
+            builder.setSmallIcon(android.R.drawable.ic_media_play)
+                .setContentTitle(playerData.title)
+                .setContentText(if (isPlaying) "正在播放" else "已暂停")
+                .setOngoing(isPlaying)
+                .setCategory(Notification.CATEGORY_TRANSPORT)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setStyle(Notification.MediaStyle().setMediaSession(mediaSession.sessionToken))
+            if (pendingIntent != null) {
+                builder.setContentIntent(pendingIntent)
+            }
+            val intent = Intent(context, PlayerForegroundService::class.java).apply {
+                putExtra("title", playerData.title)
+                putExtra("isPlaying", isPlaying)
+                putExtra("token", mediaSession.sessionToken)
+            }
+            if (SharedPreferencesUtil.getBoolean("player_background", false)) {
+                try {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            } else {
+                notificationManager.notify(1001, builder.build())
+            }
+        }
+    }
+
+    LaunchedEffect(currentProgress) {
+        if (isPrepared) {
+            val state = if (isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
+            val playbackState = PlaybackState.Builder()
+                .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_SEEK_TO)
+                .setState(state, currentProgress, playbackSpeed)
+                .build()
+            mediaSession.setPlaybackState(playbackState)
+        }
+    }
+
     var liveWebSocket by remember { mutableStateOf<WebSocket?>(null) }
     var surfaceHolder by remember { mutableStateOf<SurfaceHolder?>(null) }
     var surfaceReady by remember { mutableStateOf(false) }
@@ -196,10 +402,14 @@ fun PlayerScreen(
     var videoHeight by remember { mutableFloatStateOf(9f) }
     val useTextureView = remember { SharedPreferencesUtil.getBoolean("player_texture_view", true) }
 
-    LaunchedEffect(interactionCounter) {
-        showControls = true
-        delay(3.seconds)
-        showControls = false
+    LaunchedEffect(interactionCounter, isPlaying) {
+        if (interactionCounter > 0 || !isPlaying) {
+            showControls = true
+        }
+        if (isPlaying) {
+            delay(3.seconds)
+            showControls = false
+        }
     }
 
     LaunchedEffect(isPlaying, isPrepared) {
@@ -263,7 +473,7 @@ fun PlayerScreen(
         if (showDanmaku) danmakuView.show() else danmakuView.hide()
     }
 
-    LaunchedEffect(if (isLive) playerData.aid else if (isLocal) playerData.videoUrl else playerData.cid) {
+    LaunchedEffect(if (isLive) playerData.aid else if (isLocal) playerData.videoUrl else playerData.cid, isAudioOnlyMode) {
         isLoading = true
         try {
             if (!isLocal && !CookieManager.getCookie().contains("buvid3")) {
@@ -341,11 +551,15 @@ fun PlayerScreen(
             }
 
             val result = if (isLive || isLocal) playerData 
-                         else if (playerData.type == PlayerData.TYPE_BANGUMI) PlayerApi.getBangumi(playerData)
-                         else PlayerApi.getVideo(playerData)
+                         else if (playerData.type == PlayerData.TYPE_BANGUMI) {
+                             if (isAudioOnlyMode) PlayerApi.getVideoDash(playerData) else PlayerApi.getBangumi(playerData)
+                         } else {
+                             if (isAudioOnlyMode) PlayerApi.getVideoDash(playerData) else PlayerApi.getVideo(playerData)
+                         }
             if (!isLive && !isLocal) playerData = result
-            if (result.videoUrl.isNotEmpty()) {
+            if (result.videoUrl.isNotEmpty() || result.audioUrl.isNotEmpty()) {
                 mediaPlayer.reset()
+                mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", 1)
                 mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "allowed_extensions", "ALL")
                 mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "protocol_whitelist", "file,http,https,tcp,tls,crypto")
                 mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.95 Safari/537.36")
@@ -360,7 +574,8 @@ fun PlayerScreen(
                     mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", 0)
                     mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", 1)
                 }
-                mediaPlayer.dataSource = result.videoUrl
+                val playUrl = if (isAudioOnlyMode && result.audioUrl.isNotEmpty()) result.audioUrl else result.videoUrl
+                mediaPlayer.dataSource = playUrl
                 if (useTextureView) {
                     if (textureSurface != null) {
                         mediaPlayer.setSurface(textureSurface)
@@ -379,7 +594,11 @@ fun PlayerScreen(
                     isLoading = false
                     totalDuration = it.duration
                     
-                    if (playerData.progress > 0) {
+                    if (switchPendingSeekMs >= 0) {
+                        it.seekTo(switchPendingSeekMs)
+                        currentProgress = switchPendingSeekMs
+                        switchPendingSeekMs = -1L
+                    } else if (playerData.progress > 0) {
                         val targetMs = (playerData.progress * 1000L).coerceAtMost(it.duration)
                         it.seekTo(targetMs)
                         currentProgress = targetMs
@@ -543,6 +762,50 @@ fun PlayerScreen(
 
     val view = LocalView.current
     val viewConfiguration = LocalViewConfiguration.current
+    
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                if (SharedPreferencesUtil.getBoolean("player_background", false)) {
+                    val audioOnly = SharedPreferencesUtil.getBoolean("player_background_audio_only", false)
+                    if (audioOnly && !isLive && !isLocal) {
+                        try {
+                            switchPendingSeekMs = mediaPlayer.currentPosition
+                        } catch (e: Exception) {}
+                        isAudioOnlyMode = true
+                    } else {
+                        mediaPlayer.setSurface(null)
+                    }
+                } else {
+                    if (isPlaying) {
+                        mediaPlayer.pause()
+                        danmakuView.pause()
+                        isPlaying = false
+                    }
+                }
+            } else if (event == Lifecycle.Event.ON_START) {
+                if (isAudioOnlyMode) {
+                    try {
+                        switchPendingSeekMs = mediaPlayer.currentPosition
+                    } catch (e: Exception) {}
+                    isAudioOnlyMode = false
+                }
+                if (!isAudioOnlyMode) {
+                    if (useTextureView) {
+                        if (textureSurface != null) mediaPlayer.setSurface(textureSurface)
+                    } else {
+                        if (surfaceHolder != null) mediaPlayer.setDisplay(surfaceHolder)
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+    
     DisposableEffect(Unit) {
         view.keepScreenOn = true
         val startTs = System.currentTimeMillis() / 1000
@@ -943,8 +1206,8 @@ fun PlayerScreen(
                     maxLines = 1,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 20.dp)
-                        .padding(horizontal = 32.dp)
+                        .padding(top = 24.dp)
+                        .padding(horizontal = 36.dp)
                         .clickable { onBack() }
                         .basicMarquee()
                 )

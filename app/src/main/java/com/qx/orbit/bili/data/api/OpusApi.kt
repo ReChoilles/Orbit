@@ -6,6 +6,7 @@ import com.qx.orbit.bili.data.remote.GsonConfig
 import com.qx.orbit.bili.data.remote.HttpClient
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import com.qx.orbit.bili.util.fixCoverUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -177,13 +178,13 @@ object OpusApi {
         val topImages = mutableListOf<String>()
         if (majorType == "MAJOR_TYPE_DRAW") {
             majorObj?.draw?.items?.forEach { drawItem ->
-                drawItem.src?.fixUrl()?.let { topImages.add(it) }
+                drawItem.src?.fixCoverUrl()?.let { topImages.add(it) }
             }
         }
         
         // 如果 module_top 里有 album pics，也加入到 topImages
         modules?.module_top?.display?.album?.pics?.forEach { pic ->
-            pic.url?.fixUrl()?.takeIf { it.isNotEmpty() }?.let { topImages.add(it) }
+            pic.url?.fixCoverUrl()?.takeIf { it.isNotEmpty() }?.let { topImages.add(it) }
         }
 
         // 如果 modules 中没有图片，从根级 opus.content.paragraphs 提取
@@ -191,7 +192,7 @@ object OpusApi {
             for (p in rootOpusParas) {
                 if (p.para_type == OpusParagraph.TYPE_PIC) {
                     p.pic?.pics?.forEach { pic ->
-                        pic.url?.fixUrl()?.takeIf { it.isNotEmpty() }?.let { topImages.add(it) }
+                        pic.url?.fixCoverUrl()?.takeIf { it.isNotEmpty() }?.let { topImages.add(it) }
                     }
                 }
             }
@@ -212,7 +213,7 @@ object OpusApi {
             "MAJOR_TYPE_ARCHIVE" -> {
                 if (commentId == 0L) commentId = majorObj?.archive?.aid ?: 0
                 if (commentType == 0) commentType = 1
-                cover = majorObj?.archive?.cover?.fixUrl() ?: ""
+                cover = majorObj?.archive?.cover?.fixCoverUrl() ?: ""
             }
             "MAJOR_TYPE_ARTICLE" -> {
                 if (commentId == 0L) commentId = majorObj?.article?.id ?: 0
@@ -292,7 +293,7 @@ object OpusApi {
                     }
                 }
                 OpusParagraph.TYPE_PIC -> {
-                    val urls = p.pic?.pics?.mapNotNull { it.url?.fixUrl()?.takeIf { u -> u.isNotEmpty() } } ?: emptyList()
+                    val urls = p.pic?.pics?.mapNotNull { it.url?.fixCoverUrl()?.takeIf { u -> u.isNotEmpty() } } ?: emptyList()
                     if (urls.isNotEmpty()) {
                         list.add(OpusParagraph(align = p.align, type = p.para_type, pics = urls))
                     }
@@ -325,7 +326,7 @@ object OpusApi {
                     val text = rich.text ?: ""
                     when (rich.type) {
                         "RICH_TEXT_NODE_TYPE_EMOJI" -> {
-                            val iconUrl = rich.emoji?.icon_url?.fixUrl() ?: ""
+                            val iconUrl = rich.emoji?.icon_url?.fixCoverUrl() ?: ""
                             val size = rich.emoji?.size ?: 1
                             list.add(OpusTextNode(text = text, emoteUrl = iconUrl, emoteSize = size))
                         }
@@ -397,11 +398,6 @@ object OpusApi {
         return null
     }
 
-    private fun String.fixUrl(): String = when {
-        startsWith("//") -> "https:$this"
-        startsWith("http://") -> replaceFirst("http://", "https://")
-        else -> this
-    }.replace(".avif", ".webp")
 
     private const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.95 Safari/537.36"
 }

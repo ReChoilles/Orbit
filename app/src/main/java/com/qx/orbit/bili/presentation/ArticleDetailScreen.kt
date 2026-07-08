@@ -37,6 +37,8 @@ import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import com.qx.orbit.bili.presentation.util.parseRichText
+import com.qx.orbit.bili.util.fixCoverUrl
 import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.foundation.pager.HorizontalPager
@@ -427,18 +429,14 @@ fun ArticleCommentsPage(
 }
 
 private fun fixUrl(url: String): String {
-    val base = when {
-        url.startsWith("//") -> "https:$url"
-        url.startsWith("http://") -> url.replaceFirst("http://", "https://")
-        else -> url
-    }
+    val base = url.fixCoverUrl()
     // 如果已含 @ 裁剪参数则不再追加
-    if (base.contains("@")) return base.replace(".avif", ".webp")
+    if (base.contains("@")) return base
     // B站 CDN 图片追加 @480w.webp 缩略后缀
     if (base.contains("hdslb.com") || base.contains("bfs/")) {
-        return base.replace(".avif", ".webp") + "@480w.webp"
+        return "$base@480w.webp"
     }
-    return base.replace(".avif", ".webp")
+    return base
 }
 
 private sealed class ArticleSegment {

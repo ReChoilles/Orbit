@@ -11,6 +11,7 @@ import com.qx.orbit.bili.data.api.DanmakuApi
 import com.qx.orbit.bili.data.api.PlayerApi
 import com.qx.orbit.bili.data.model.DanmakuElem
 import com.qx.orbit.bili.data.model.PlayerData
+import com.qx.orbit.bili.data.remote.CookieManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,16 +42,23 @@ object VideoDownloadManager {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    private var appContext: Context? = null
+
     fun init(context: Context) {
+        appContext = context.applicationContext
         loadTasks(context)
         scanAndRegisterLocalFiles(context)
     }
 
     private fun getDownloadDir(bvid: String? = null): File {
-        val baseDir = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
-            "Orbit"
-        )
+        val cacheLocation = SharedPreferencesUtil.getString("cache_location", "internal")
+        val baseDir = if (cacheLocation == "external") {
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Orbit")
+        } else {
+            val mediaDir = appContext?.externalMediaDirs?.firstOrNull()
+            if (mediaDir != null) File(mediaDir, "Video")
+            else File(appContext?.getExternalFilesDir(Environment.DIRECTORY_MOVIES), "Video")
+        }
         val dir = if (!bvid.isNullOrEmpty()) File(baseDir, bvid) else baseDir
         if (!dir.exists()) dir.mkdirs()
         return dir
@@ -245,6 +253,7 @@ object VideoDownloadManager {
         val existingLength = if (file.exists()) file.length() else 0L
 
         val requestBuilder = Request.Builder().url(url)
+            .addHeader("Cookie", CookieManager.getCookie())
             .addHeader("Referer", "https://www.bilibili.com")
             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.95 Safari/537.36")
 

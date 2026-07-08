@@ -59,6 +59,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -121,6 +124,7 @@ import com.qx.orbit.bili.data.model.VideoCard
 import com.qx.orbit.bili.data.model.VideoInfo
 import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
 import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
+import com.qx.orbit.bili.presentation.ui.components.WysTimeText
 import com.qx.orbit.bili.presentation.ui.components.ReplyCard
 import com.qx.orbit.bili.presentation.ui.components.RoundToast
 import com.qx.orbit.bili.presentation.ui.components.UserAvatar
@@ -143,7 +147,7 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
     }
     
     val context = LocalContext.current
-    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboardManager = LocalClipboardManager.current
 
     val videoInfo by viewModel.videoInfo.collectAsState()
     val tags by viewModel.tags.collectAsState()
@@ -267,7 +271,7 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                 VideoDownloadManager.enqueue(
                                     url = "",
                                     title = info.title,
-                                    filename = "${info.title}_audio.m4s",
+                                    filename = "${info.title}_audio.mp4",
                                     context = context,
                                     aid = aid,
                                     cid = info.cids.firstOrNull() ?: 0L,
@@ -354,11 +358,10 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                     pagenames = info.pagenames,
                                     type = if (info.epid > 0) PlayerData.TYPE_BANGUMI else PlayerData.TYPE_VIDEO,
                                     qn = qn,
-                                    progress = info.history?.progress ?: 0
+                                    progress = info.history?.progress ?: 0,
+                                    cover = info.cover
                                 )
-                                val jsonStr = Gson().toJson(playerData)
-                                val encodedJson = URLEncoder.encode(jsonStr, StandardCharsets.UTF_8.toString())
-                                navController.navigate("player/$encodedJson")
+                                PlayerApi.jumpToPlayer(context, navController, playerData)
                             },
                             onLikeClick = { viewModel.toggleLike { success, msg -> RoundToast.show(context, msg) } },
                             onTripleClick = {
@@ -609,22 +612,37 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
     val folders by viewModel.favoriteFolders.collectAsState()
     Dialog(visible = showFavDialog, onDismissRequest = { showFavDialog = false }) {
             val listState = rememberTransformingLazyColumnState()
+            val transformationSpec = rememberTransformationSpec()
             val focusRequester = remember { FocusRequester() }
             LaunchedEffect(Unit) {
                 try { focusRequester.requestFocus() } catch (e: Exception) {}
             }
             ScreenScaffold(
                 scrollState = listState,
+                timeText = { WysTimeText() },
                 modifier = Modifier.focusRequester(focusRequester).focusable()
-            ) {
+            ) { contentPadding ->
                 Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                     if (folders == null) {
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                     } else if (folders!!.isEmpty()) {
                         Text("暂无收藏夹", modifier = Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.error)
                     } else {
-                        TransformingLazyColumn(state = listState, contentPadding = PaddingValues(16.dp), rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
-                            item { ListHeader { Text("选择收藏夹", color = MaterialTheme.colorScheme.primary) } }
+                        TransformingLazyColumn(
+                            state = listState, 
+                            contentPadding = contentPadding, 
+                            rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            item { 
+                                ListHeader(
+                                    modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+                                    transformation = SurfaceTransformation(transformationSpec)
+                                ) { 
+                                    Text("选择收藏夹", color = MaterialTheme.colorScheme.primary) 
+                                } 
+                            }
                             items(folders!!.size) { index ->
                                 val folder = folders!![index]
                                 Button(
@@ -632,11 +650,12 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                         viewModel.doFavorite(folder.id) { success, msg -> RoundToast.show(context, msg) }
                                         showFavDialog = false 
                                     },
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).transformedHeight(this, transformationSpec),
                                     contentPadding = PaddingValues(vertical = 8.dp, horizontal = 16.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = if (folder.isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer
-                                    )
+                                    ),
+                                    transformation = SurfaceTransformation(transformationSpec)
                                 ) {
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -718,8 +737,9 @@ fun VideoInfoPage(
     val transformationSpec = rememberTransformationSpec()
     val isRound = LocalConfiguration.current.isScreenRound
     var isDescExpanded by remember { mutableStateOf(false) }
-    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    val hapticFeedback = LocalHapticFeedback.current
     ScreenScaffold(scrollState = listState, modifier = Modifier.focusRequester(focusRequester)) { contentPadding ->
         TransformingLazyColumn(
             state = listState,
@@ -1017,14 +1037,19 @@ fun VideoInfoPage(
                     LaunchedEffect(isLikePressed) {
                         if (isLikePressed) {
                             delay(300)
+                            val vibrateJob = launch {
+                                while (tripleProgress.value < 1f) {
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    delay(150)
+                                }
+                            }
                             tripleProgress.animateTo(
                                 targetValue = 1f,
                                 animationSpec = tween(durationMillis = 3000, easing = LinearEasing)
                             )
+                            vibrateJob.cancel()
                             if (tripleProgress.value >= 1f) {
-                                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                delay(80)
-                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                                 onTripleClick()
                             }
                         } else {

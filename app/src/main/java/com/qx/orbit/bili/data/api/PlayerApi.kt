@@ -1,10 +1,22 @@
 package com.qx.orbit.bili.data.api
 
-import com.qx.orbit.bili.data.model.*
-import com.qx.orbit.bili.data.remote.*
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.navigation.NavController
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import com.qx.orbit.bili.data.model.*
+import com.qx.orbit.bili.data.remote.*
+import com.qx.orbit.bili.presentation.ui.components.RoundToast
+import com.qx.orbit.bili.util.SharedPreferencesUtil
+import java.io.Serializable
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.util.HashMap
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 
@@ -389,6 +401,56 @@ object PlayerApi {
             tagStr = resp.tag ?: "",
             events = events
         )
+    }
+
+    fun jumpToPlayer(context: Context, navController: NavController, playerData: PlayerData) {
+        val playerChoice = SharedPreferencesUtil.getString("player", "apsisPlayer")
+        when (playerChoice) {
+            "aliangPlayer" -> {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val pd = when (playerData.type) {
+                            PlayerData.TYPE_VIDEO -> getVideo(playerData)
+                            PlayerData.TYPE_BANGUMI -> getBangumi(playerData)
+                            else -> playerData
+                        }
+                        withContext(Dispatchers.Main) {
+                            val intent = Intent().apply {
+                                setClassName("com.aliangmaker.media", "com.aliangmaker.media.PlayVideoActivity")
+                                putExtra("name", pd.title)
+                                putExtra("danmaku", "https://comment.bilibili.com/${pd.cid}.xml")
+                                putExtra("live_mode", pd.type == PlayerData.TYPE_LIVE)
+                                data = Uri.parse(pd.videoUrl)
+                                if (pd.type != PlayerData.TYPE_LOCAL) {
+                                    val headers = HashMap<String, String>().apply {
+                                        put("Cookie", CookieManager.getCookie())
+                                        put("Referer", "https://www.bilibili.com/")
+                                    }
+                                    putExtra("cookie", headers as Serializable)
+                                    putExtra("agent", USER_AGENT)
+                                    putExtra("progress", pd.progress * 1000L)
+                                }
+                                action = Intent.ACTION_VIEW
+                            }
+                            try {
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                RoundToast.show(context, "未找到凉腕播放器或启动失败")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            RoundToast.show(context, "获取播放地址失败: ${e.message}")
+                        }
+                    }
+                }
+            }
+            else -> { // apsisPlayer
+                val jsonStr = GsonConfig.gson.toJson(playerData)
+                val encodedJson = URLEncoder.encode(jsonStr, StandardCharsets.UTF_8.toString())
+                navController.navigate("player/$encodedJson")
+            }
+        }
     }
 
     private fun httpGet(url: String): String {

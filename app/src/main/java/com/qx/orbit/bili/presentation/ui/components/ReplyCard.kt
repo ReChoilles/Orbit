@@ -39,6 +39,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -58,6 +59,7 @@ import com.qx.orbit.bili.data.model.Reply
 import com.qx.orbit.bili.data.remote.CookieManager
 import com.qx.orbit.bili.presentation.theme.BiliPink
 import com.qx.orbit.bili.presentation.util.parseRichText
+import com.qx.orbit.bili.util.fixCoverUrl
 import com.qx.orbit.bili.util.LinkResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -187,7 +189,7 @@ fun ReplyCard(
             Text(
                 text = richText,
                 inlineContent = inlineContent,
-                style = MaterialTheme.typography.bodySmall.copy(lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified),
+                style = MaterialTheme.typography.bodySmall.copy(lineHeight = TextUnit.Unspecified),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.pointerInput(Unit) {
                     detectTapGestures { offset ->
@@ -233,13 +235,7 @@ fun ReplyCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
                     val isSingle = reply.pictureList.size == 1
-                    val fixedImages = reply.pictureList.map { url ->
-                        when {
-                            url.startsWith("//") -> "https:$url"
-                            url.startsWith("http://") -> url.replaceFirst("http://", "https://")
-                            else -> url
-                        }
-                    }
+                    val fixedImages = reply.pictureList.map { it.fixCoverUrl() }
                     fixedImages.forEachIndexed { index, fixedUrl ->
                         AsyncImage(
                             model = fixedUrl,
@@ -344,7 +340,7 @@ fun ReplyCard(
                                 append(richText)
                             },
                             inlineContent = inlineContent,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = TextUnit.Unspecified),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,

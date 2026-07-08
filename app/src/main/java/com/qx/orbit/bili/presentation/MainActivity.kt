@@ -117,10 +117,14 @@ import com.qx.orbit.bili.presentation.viewmodel.FollowListViewModel
 import com.qx.orbit.bili.presentation.player.PlayerScreen
 import com.qx.orbit.bili.presentation.settings.SettingLoginStatusScreen
 import com.qx.orbit.bili.presentation.settings.SettingPreferenceScreen
-import com.qx.orbit.bili.presentation.settings.SettingTerminalPlayerScreen
+import com.qx.orbit.bili.presentation.settings.SettingApsisPlayerScreen
 import com.qx.orbit.bili.presentation.settings.SettingUIScreen
 import com.qx.orbit.bili.presentation.settings.SettingVideoRenderScreen
+import com.qx.orbit.bili.presentation.settings.SettingCacheLocationScreen
+import com.qx.orbit.bili.presentation.settings.OneFingerZoomTutorialScreen
 import com.qx.orbit.bili.presentation.settings.SettingsScreen
+import com.qx.orbit.bili.presentation.settings.SettingPlayerChooseScreen
+import com.qx.orbit.bili.presentation.settings.SettingVideoQualityScreen
 import com.qx.orbit.bili.presentation.settings.PlayerCustomizationScreen
 import com.qx.orbit.bili.presentation.theme.OrbitTheme
 import com.qx.orbit.bili.presentation.ui.components.LevelIcon
@@ -180,18 +184,21 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
 
         LaunchedEffect(Unit) {
             val hasDeclined = SharedPreferencesUtil.getBoolean("shizuku_declined", false)
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    storagePermissionLauncher.launch(
-                        arrayOf(
-                            android.Manifest.permission.READ_EXTERNAL_STORAGE,
-                            android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+            val cacheLocation = SharedPreferencesUtil.getString("cache_location", "internal")
+            if (cacheLocation == "external") {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                    if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                        storagePermissionLauncher.launch(
+                            arrayOf(
+                                android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                            )
                         )
-                    )
-                }
-            } else {
-                if (!ShizukuUtils.hasManageExternalStoragePermission(context) && !hasDeclined && !ShizukuUtils.isShizukuAuthorized()) {
-                    showShizukuDialog = true
+                    }
+                } else {
+                    if (!ShizukuUtils.hasManageExternalStoragePermission(context) && !hasDeclined && !ShizukuUtils.isShizukuAuthorized()) {
+                        showShizukuDialog = true
+                    }
                 }
             }
         }
@@ -399,14 +406,26 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
             composable("settings_main") {
                 SettingsScreen(navController = navController)
             }
-            composable("settings_terminal_player") {
-                SettingTerminalPlayerScreen(navController = navController)
+            composable("settings_player_choose") {
+                SettingPlayerChooseScreen(navController = navController)
+            }
+            composable("settings_apsis_player") {
+                SettingApsisPlayerScreen(navController = navController)
             }
             composable("settings_player_customization") {
                 PlayerCustomizationScreen(onBack = { navController.popBackStack() })
             }
             composable("settings_video_render") {
                 SettingVideoRenderScreen(navController = navController)
+            }
+            composable("settings_video_quality") {
+                SettingVideoQualityScreen(navController = navController)
+            }
+            composable("settings_cache_location") {
+                SettingCacheLocationScreen(navController = navController)
+            }
+            composable("one_finger_zoom_tutorial") {
+                OneFingerZoomTutorialScreen(navController = navController)
             }
             composable("settings_ui") {
                 SettingUIScreen(navController = navController)

@@ -80,6 +80,7 @@ import com.google.gson.Gson
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.LiveRoom
 import com.qx.orbit.bili.data.model.PlayerData
+import com.qx.orbit.bili.data.api.PlayerApi
 import com.qx.orbit.bili.presentation.ui.components.UserAvatar
 import com.qx.orbit.bili.presentation.ui.components.UserNameText
 import com.qx.orbit.bili.presentation.viewmodel.EmoteInline
@@ -190,12 +191,10 @@ fun LiveDetailScreen(
                                         aid = room!!.roomid,
                                         mid = room!!.uid,
                                         type = PlayerData.TYPE_LIVE,
-                                        timeStamp = liveStartTime
+                                        timeStamp = liveStartTime,
+                                        cover = room!!.user_cover.ifEmpty { room!!.cover }.ifEmpty { room!!.keyframe }
                                     )
-                                    val jsonStr = Gson().toJson(playerData)
-                                    val encodedJson =
-                                        URLEncoder.encode(jsonStr, StandardCharsets.UTF_8.toString())
-                                    navController.navigate("player/$encodedJson")
+                                    PlayerApi.jumpToPlayer(context, navController, playerData)
                                 },
                                 onUpClick = { mid ->
                                     navController.navigate("user_space/$mid")
@@ -750,10 +749,4 @@ fun LiveRecommendPage(
             item { Spacer(modifier = Modifier.height(32.dp)) }
         }
     }
-}
-
-private fun fixUrl(url: String): String = when {
-    url.startsWith("//") -> "https:$url"
-    url.startsWith("http://") -> url.replaceFirst("http://", "https://")
-    else -> url
 }

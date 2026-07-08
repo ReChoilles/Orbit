@@ -39,6 +39,7 @@ import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.qx.orbit.bili.util.fixCoverUrl
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.Dynamic
 import com.qx.orbit.bili.data.model.VideoCard
@@ -58,11 +59,7 @@ fun DynamicCard(
 ) {
     val context = LocalContext.current
     val getImageRequest = { url: String, isCover: Boolean ->
-        val fixedUrl = when {
-            url.startsWith("//") -> "https:$url"
-            url.startsWith("http://") -> url.replaceFirst("http://", "https://")
-            else -> url
-        }
+        val fixedUrl = url.fixCoverUrl()
         val finalUrl = if (!fixedUrl.contains("@")) {
             if (isCover) "$fixedUrl@480w_270h_1c.webp" else "$fixedUrl@400w.webp"
         } else fixedUrl

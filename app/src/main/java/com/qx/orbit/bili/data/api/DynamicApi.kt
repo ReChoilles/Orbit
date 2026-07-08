@@ -6,6 +6,7 @@ import com.qx.orbit.bili.data.remote.GsonConfig
 import com.qx.orbit.bili.data.remote.HttpClient
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import com.qx.orbit.bili.util.fixCoverUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.net.Uri
@@ -541,21 +542,21 @@ object DynamicApi {
                 if (commentId == 0L) commentId = archive?.aid ?: 0
                 if (commentType == 0) commentType = 1
                 archiveTitle = archive?.title ?: ""
-                cover = archive?.cover?.fixUrl() ?: ""
+                cover = archive?.cover?.fixCoverUrl() ?: ""
                 bvid = archive?.bvid ?: ""
                 if (content.isEmpty()) content = archiveTitle
             }
             "MAJOR_TYPE_DRAW" -> {
                 if (commentType == 0) commentType = 11
                 majorObj?.draw?.items?.forEach { drawItem ->
-                    drawItem.src?.fixUrl()?.takeIf { it.isNotEmpty() }?.let { images.add(it) }
+                    drawItem.src?.fixCoverUrl()?.takeIf { it.isNotEmpty() }?.let { images.add(it) }
                 }
                 if (content.isEmpty()) majorObj?.draw?.desc?.takeIf { it.isNotEmpty() }?.let { content = it }
             }
             "MAJOR_TYPE_OPUS" -> {
                 if (commentType == 0) commentType = 11
                 majorObj?.opus?.pics?.forEach { pic ->
-                    pic.url?.fixUrl()?.takeIf { it.isNotEmpty() }?.let { images.add(it) }
+                    pic.url?.fixCoverUrl()?.takeIf { it.isNotEmpty() }?.let { images.add(it) }
                 }
                 val summary = majorObj?.opus?.summary
                 val opusTextsToRemove = parseRichTextNodes(summary?.rich_text_nodes, emotes, members)
@@ -582,7 +583,7 @@ object DynamicApi {
                             val title = livePlayInfo.get("title")?.asString ?: ""
                             val cov = livePlayInfo.get("cover")?.asString ?: ""
                             if (content.isEmpty()) content = title
-                            cover = cov.fixUrl()
+                            cover = cov.fixCoverUrl()
                             val roomId = livePlayInfo.get("room_id")?.asString ?: ""
                             bvid = roomId
                             if (archiveTitle.isEmpty()) archiveTitle = title
@@ -672,7 +673,7 @@ object DynamicApi {
             val text = node.text ?: ""
             if (type == "RICH_TEXT_NODE_TYPE_EMOJI") {
                 val emoji = node.emoji
-                val url = emoji?.icon_url?.fixUrl()
+                val url = emoji?.icon_url?.fixCoverUrl()
                 val size = emoji?.size ?: 1
                 if (!url.isNullOrEmpty()) {
                     emotes[text] = Emote(
@@ -696,7 +697,7 @@ object DynamicApi {
                     textsToRemove.add(text)
                 }
                 node.pics?.forEach { pic ->
-                    pic.src?.fixUrl()?.takeIf { it.isNotEmpty() }?.let { url ->
+                    pic.src?.fixCoverUrl()?.takeIf { it.isNotEmpty() }?.let { url ->
                         images?.add(url)
                     }
                 }
@@ -714,11 +715,6 @@ object DynamicApi {
         return HttpClient.client.newCall(request).execute().body?.string() ?: ""
     }
 
-    private fun String.fixUrl(): String = when {
-        startsWith("//") -> "https:$this"
-        startsWith("http://") -> replaceFirst("http://", "https://")
-        else -> this
-    }
 
     private const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.95 Safari/537.36"
 }

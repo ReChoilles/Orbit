@@ -74,6 +74,7 @@ import com.google.gson.Gson
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.Bangumi
 import com.qx.orbit.bili.data.model.PlayerData
+import com.qx.orbit.bili.data.api.PlayerApi
 import com.qx.orbit.bili.data.model.Reply
 import com.qx.orbit.bili.presentation.theme.ActiveDynamicTheme
 import com.qx.orbit.bili.presentation.theme.extractSeedColorFromBitmap
@@ -238,11 +239,10 @@ fun BangumiDetailScreen(navController: NavHostController, mediaId: Long, viewMod
                                         sid = info.season_id,
                                         qn = qn,
                                         progress = initialProgress,
-                                        bvid = ""
+                                        bvid = "",
+                                        cover = ep.cover.ifEmpty { info.cover }
                                     )
-                                    val jsonStr = Gson().toJson(playerData)
-                                    val encodedJson = URLEncoder.encode(jsonStr, StandardCharsets.UTF_8.toString())
-                                    navController.navigate("player/$encodedJson")
+                                    PlayerApi.jumpToPlayer(context, navController, playerData)
                                 },
                                 onFollowClick = { viewModel.toggleFollow() }
                             )

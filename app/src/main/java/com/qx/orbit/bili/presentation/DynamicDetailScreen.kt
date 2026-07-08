@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.TextUnit
 import com.qx.orbit.bili.presentation.ui.components.ImageViewerDialog
 import com.qx.orbit.bili.presentation.ui.components.ReplyCard
 import com.qx.orbit.bili.presentation.util.parseRichText
+import com.qx.orbit.bili.util.fixCoverUrl
 
 @Composable
 fun DynamicDetailScreen(
@@ -74,6 +75,7 @@ fun DynamicDetailScreen(
     val context = LocalContext.current
     var showImageDialog by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
     var showWriteReply by remember { mutableStateOf(false) }
+    var replyTarget by remember { mutableStateOf<com.qx.orbit.bili.data.model.Reply?>(null) }
 
     LaunchedEffect(dynamicId) {
         viewModel.loadDynamic(dynamicId)
@@ -200,13 +202,7 @@ fun DynamicDetailScreen(
                                 }
 
                                 if (item.images.isNotEmpty()) {
-                                    val fixedImages = item.images.map { imgUrl ->
-                                        when {
-                                            imgUrl.startsWith("//") -> "https:$imgUrl"
-                                            imgUrl.startsWith("http://") -> imgUrl.replaceFirst("http://", "https://")
-                                            else -> imgUrl
-                                        }
-                                    }
+                                    val fixedImages = item.images.map { it.fixCoverUrl() }
                                     fixedImages.forEachIndexed { index, fixedUrl ->
                                         val finalUrl = if (!fixedUrl.contains("@")) "$fixedUrl@400w.webp" else fixedUrl
                                         AsyncImage(
@@ -317,13 +313,7 @@ fun DynamicDetailScreen(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
-                                                val fixedImages = forward.images.map { imgUrl ->
-                                                    when {
-                                                        imgUrl.startsWith("//") -> "https:$imgUrl"
-                                                        imgUrl.startsWith("http://") -> imgUrl.replaceFirst("http://", "https://")
-                                                        else -> imgUrl
-                                                    }
-                                                }
+                                                val fixedImages = forward.images.map { it.fixCoverUrl() }
                                                 fixedImages.take(3).forEachIndexed { index, fixedImgUrl ->
                                                     val finalImgUrl = if (!fixedImgUrl.contains("@")) "$fixedImgUrl@360w_360h_1e_1c.webp" else fixedImgUrl
                                                     AsyncImage(
@@ -385,6 +375,7 @@ fun DynamicDetailScreen(
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.clickable {
+                                            replyTarget = null
                                             viewModel.loadEmotes()
                                             showWriteReply = true
                                         }.padding(4.dp)
@@ -429,7 +420,16 @@ fun DynamicDetailScreen(
                                 navController = navController,
                                 replyType = ReplyApi.REPLY_TYPE_DYNAMIC,
                                 onRemove = { viewModel.removeReplyLocally(replies[index]) },
-                                onLikeClick = { viewModel.likeReply(replies[index].rpid, replies[index].liked) }
+                                onLikeClick = { viewModel.likeReply(replies[index].rpid, replies[index].liked) },
+                                onClick = {
+                                    navController.currentBackStackEntry?.savedStateHandle?.set("reply", replies[index])
+                                    navController.navigate("reply_detail")
+                                },
+                                onReplyClick = {
+                                    replyTarget = replies[index]
+                                    viewModel.loadEmotes()
+                                    showWriteReply = true
+                                }
                             )
                         }
                     }
@@ -450,18 +450,27 @@ fun DynamicDetailScreen(
 
     WriteReplyScreen(
         visible = showWriteReply,
-        targetName = null,
+        targetName = replyTarget?.sender?.name,
         emotes = emotes,
         onSend = { text, _ ->
             viewModel.sendReply(
                 text = text,
-                onSuccess = { showWriteReply = false },
+                root = replyTarget?.rpid ?: 0L,
+                parent = replyTarget?.rpid ?: 0L,
+                onSuccess = { 
+                    showWriteReply = false
+                    replyTarget = null
+                },
                 onError = { error ->
                     showWriteReply = false
+                    replyTarget = null
                     com.qx.orbit.bili.presentation.ui.components.RoundToast.show(context, error)
                 }
             )
         },
-        onClose = { showWriteReply = false }
+        onClose = { 
+            showWriteReply = false 
+            replyTarget = null
+        }
     )
 }

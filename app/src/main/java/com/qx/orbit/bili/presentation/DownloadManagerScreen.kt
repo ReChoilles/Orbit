@@ -27,6 +27,7 @@ import androidx.wear.compose.material3.lazy.transformedHeight
 import com.google.gson.Gson
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.PlayerData
+import com.qx.orbit.bili.data.api.PlayerApi
 import com.qx.orbit.bili.presentation.ui.components.CacheVideoCard
 import com.qx.orbit.bili.presentation.ui.components.WysAlertDialog
 import com.qx.orbit.bili.util.VideoDownloadManager
@@ -183,6 +184,7 @@ fun DownloadManagerScreen(navController: NavController) {
                 }
 
                 if (completedDownloads.isNotEmpty()) {
+                    /*
                     item {
                         Text(
                             "已缓存",
@@ -198,7 +200,7 @@ fun DownloadManagerScreen(navController: NavController) {
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
-                    }
+                    }*/
 
                     items(completedDownloads, key = { it.id }) { download ->
                         val revealState = rememberRevealState()
@@ -234,11 +236,10 @@ fun DownloadManagerScreen(navController: NavController) {
                                         bvid = download.bvid,
                                         type = PlayerData.TYPE_LOCAL,
                                         videoUrl = download.localUri ?: "",
-                                        audioUrl = if (download.type == "AUDIO_AND_SUBTITLE") "audio" else ""
+                                        audioUrl = if (download.type == "AUDIO_AND_SUBTITLE") "audio" else "",
+                                        cover = download.coverUrl
                                     )
-                                    val json = Gson().toJson(playerData)
-                                    val encodedJson = URLEncoder.encode(json, "UTF-8")
-                                    navController.navigate("player/$encodedJson")
+                                    PlayerApi.jumpToPlayer(context, navController, playerData)
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()

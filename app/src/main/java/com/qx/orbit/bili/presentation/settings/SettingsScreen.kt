@@ -1,5 +1,6 @@
 package com.qx.orbit.bili.presentation.settings
 
+import android.Manifest
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -52,6 +53,8 @@ import com.qx.orbit.bili.presentation.ui.components.RoundToast
 import androidx.compose.ui.platform.LocalContext
 import com.google.gson.Gson
 import android.content.Intent
+import android.os.Build
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.wear.compose.material3.SurfaceTransformation
@@ -62,6 +65,10 @@ import com.qx.orbit.bili.presentation.ui.components.ShizukuNotInstalledDialog
 import com.qx.orbit.bili.presentation.ui.components.ShizukuActivationDialog
 import rikka.shizuku.Shizuku
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import com.qx.orbit.bili.R
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -111,7 +118,7 @@ fun SettingsScreen(navController: NavController) {
 
             item {
                 Button(
-                    onClick = { navController.navigate("settings_terminal_player") },
+                    onClick = { navController.navigate("settings_player_choose") },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
@@ -121,7 +128,23 @@ fun SettingsScreen(navController: NavController) {
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
                 ) {
-                    Text(text = "内置播放器设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(text = "选择播放器", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+
+            item {
+                Button(
+                    onClick = { navController.navigate("settings_apsis_player") },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    transformation = SurfaceTransformation(transformationSpec),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                ) {
+                    Text(text = "Apsis Player 设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
 
@@ -183,72 +206,8 @@ fun SettingPreferenceScreen(navController: NavController) {
     val transformationSpec = rememberTransformationSpec()
     val context = LocalContext.current
 
-    var showShizukuDialog by remember { mutableStateOf(false) }
-    var showShizukuNotInstalled by remember { mutableStateOf(false) }
-    var showShizukuActivation by remember { mutableStateOf(false) }
-    var hasPermission by remember { mutableStateOf(ShizukuUtils.hasManageExternalStoragePermission(context)) }
-
-    val storagePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val granted = permissions.entries.all { it.value }
-        if (granted) {
-            hasPermission = true
-        }
-    }
-
-    // Shizuku permission listener
-    LaunchedEffect(Unit) {
-        val listener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
-            if (grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                if (ShizukuUtils.grantManageExternalStorage(context)) {
-                    hasPermission = true
-                }
-            }
-        }
-        Shizuku.addRequestPermissionResultListener(listener)
-    }
-
-    if (showShizukuDialog) {
-        ShizukuPermissionDialog(
-            show = true,
-            onDismissRequest = { showShizukuDialog = false },
-            context = context,
-            onConfirmAuth = {
-                showShizukuDialog = false
-                if (!ShizukuUtils.isShizukuAvailable()) {
-                    if (ShizukuUtils.getShizukuVersionName(context) != null) {
-                        showShizukuActivation = true
-                    } else {
-                        showShizukuNotInstalled = true
-                    }
-                } else {
-                    try {
-                        Shizuku.requestPermission(0)
-                    } catch (e: Exception) {
-                        ShizukuUtils.openShizukuManager(context)
-                    }
-                }
-            }
-        )
-    }
-
-    if (showShizukuNotInstalled) {
-        ShizukuNotInstalledDialog(show = true, onDismissRequest = { showShizukuNotInstalled = false })
-    }
-
-    if (showShizukuActivation) {
-        ShizukuActivationDialog(
-            show = true,
-            onDismissRequest = { showShizukuActivation = false },
-            context = context,
-            onShowNotInstalled = { showShizukuNotInstalled = true }
-        )
-    }
-
     ScreenScaffold(
-        scrollState = listState,
-        timeText = { WysTimeText() }
+        scrollState = listState
     ) { contentPadding ->
         TransformingLazyColumn(
             state = listState,
@@ -316,49 +275,24 @@ fun SettingPreferenceScreen(navController: NavController) {
                 )
             }
 
+
             item {
                 Button(
-                    onClick = {
-                        if (!hasPermission) {
-                            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
-                                storagePermissionLauncher.launch(
-                                    arrayOf(
-                                        android.Manifest.permission.READ_EXTERNAL_STORAGE,
-                                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-                                    )
-                                )
-                            } else {
-                                showShizukuDialog = true
-                            }
-                        }
-                    },
-                    colors = if (hasPermission){
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                    else{
-                        ButtonDefaults.buttonColors(
+                    onClick = { navController.navigate("settings_cache_location") },
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
-                    )},
-                    transformation = SurfaceTransformation(transformationSpec),
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "所有文件访问权限", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (hasPermission) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(Icons.Default.Check, contentDescription = "Granted", modifier = Modifier.size(16.dp))
+                        .graphicsLayer {
+                            with(transformationSpec) {
+                                applyContainerTransformation(scrollProgress)
+                            }
                         }
-                    }
+                ) {
+                    Text(text = "缓存位置管理", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             item { Spacer(Modifier.height(20.dp)) }
@@ -367,7 +301,7 @@ fun SettingPreferenceScreen(navController: NavController) {
 }
 
 @Composable
-fun SettingTerminalPlayerScreen(navController: NavController) {
+fun SettingApsisPlayerScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
 
@@ -388,15 +322,56 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
                 ) {
-                    Text(text = "内置播放器设置", color = MaterialTheme.colorScheme.primary)
+                    Text(text = "Apsis Player 设置", color = MaterialTheme.colorScheme.primary)
                 }
             }
+            // 应用图标和名称
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                                with(transformationSpec) {
+                                    applyContainerTransformation(scrollProgress)
+                                }
+                        }
+                        .transformedHeight(this, transformationSpec),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.apsis),
+                        contentDescription = "App Icon",
+                        modifier = Modifier
+                            .size(64.dp)
+                    )
+                }
+            }
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                                with(transformationSpec) {
+                                    applyContainerTransformation(scrollProgress)
+                                }
+                        }
+                        .transformedHeight(this, transformationSpec),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(text = "Apsis Player", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.W700)
+                    Text(text = stringResource(R.string.app_version), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                }
+            }
+            item { Spacer(modifier = Modifier.height(8.dp).transformedHeight(this, transformationSpec)) }
 
             // Using SharedPreferencesUtil to track states with correct default values based on BiliClient
             val settings = listOf(
                 Triple("player_longclick", "长按倍速", true),
                 Triple("player_loop", "洗脑循环", false),
                 Triple("player_background", "熄屏继续播放", false),
+                Triple("player_background_audio_only", "后台播放音频", false),
                 Triple("player_autolandscape", "默认横屏", false),
                 Triple("player_scale", "视频可缩放", true),
                 Triple("player_doublemove", "缩放时可移动", true),
@@ -419,44 +394,11 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
                 ) {
-                    Text(text = "播放器自定义", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(text = "播放器界面自定义", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
 
-            item {
-                val isLoggedIn = CookieManager.getCookie().contains("SESSDATA")
-                val qualityOptions = listOf(
-                    16 to "360p",
-                    32 to "480p",
-                    64 to "720p",
-                    80 to "1080p"
-                )
-                var currentQn by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("play_qn", 16)) }
-                val currentIndex = qualityOptions.indexOfFirst { it.first == currentQn }.coerceAtLeast(0)
 
-                Button(
-                    onClick = {
-                        val nextIndex = (currentIndex + 1) % qualityOptions.size
-                        val nextQn = qualityOptions[nextIndex].first
-                        if (nextQn >= 64 && !isLoggedIn) {
-                            return@Button
-                        }
-                        currentQn = nextQn
-                        SharedPreferencesUtil.putInt("play_qn", nextQn)
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    transformation = SurfaceTransformation(transformationSpec),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
-                ) {
-                    val label = qualityOptions[currentIndex].second
-                    Text(text = "视频清晰度: $label", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
             item {
                 Button(
                     onClick = { navController.navigate("settings_video_render") },
@@ -477,6 +419,7 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
                 }
             }
 
+
             settings.forEach { (key, label, defaultValue) ->
                 item {
                     var checked by remember { mutableStateOf(SharedPreferencesUtil.getBoolean(key, defaultValue)) }
@@ -485,6 +428,9 @@ fun SettingTerminalPlayerScreen(navController: NavController) {
                         onCheckedChange = { isChecked ->
                             checked = isChecked
                             SharedPreferencesUtil.putBoolean(key, isChecked)
+                            if (key == "player_one_finger_zoom" && isChecked) {
+                                navController.navigate("one_finger_zoom_tutorial")
+                            }
                         },
                         label = {
                             Text(text = label, maxLines = 1, modifier = Modifier.basicMarquee())
@@ -846,6 +792,453 @@ fun SettingVideoRenderScreen(navController: NavController) {
                         }
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun SettingCacheLocationScreen(navController: NavController) {
+    val listState = rememberTransformingLazyColumnState()
+    val transformationSpec = rememberTransformationSpec()
+    var cacheLocation by remember { mutableStateOf(SharedPreferencesUtil.getString("cache_location", "internal")) }
+    val context = LocalContext.current
+    
+    var showShizukuDialog by remember { mutableStateOf(false) }
+    var showShizukuNotInstalled by remember { mutableStateOf(false) }
+    var showShizukuActivation by remember { mutableStateOf(false) }
+    var hasPermission by remember { mutableStateOf(ShizukuUtils.hasManageExternalStoragePermission(context)) }
+
+    val storagePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.entries.all { it.value }
+        if (granted) {
+            hasPermission = true
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        val listener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+            if (grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                if (ShizukuUtils.grantManageExternalStorage(context)) {
+                    hasPermission = true
+                }
+            }
+        }
+        Shizuku.addRequestPermissionResultListener(listener)
+    }
+
+    if (showShizukuDialog) {
+        ShizukuPermissionDialog(
+            show = true,
+            onDismissRequest = { showShizukuDialog = false },
+            context = context,
+            onConfirmAuth = {
+                showShizukuDialog = false
+                if (!ShizukuUtils.isShizukuAvailable()) {
+                    if (ShizukuUtils.getShizukuVersionName(context) != null) {
+                        showShizukuActivation = true
+                    } else {
+                        showShizukuNotInstalled = true
+                    }
+                } else {
+                    try {
+                        Shizuku.requestPermission(0)
+                    } catch (e: Exception) {
+                        ShizukuUtils.openShizukuManager(context)
+                    }
+                }
+            }
+        )
+    }
+
+    if (showShizukuNotInstalled) {
+        ShizukuNotInstalledDialog(show = true, onDismissRequest = { showShizukuNotInstalled = false })
+    }
+
+    if (showShizukuActivation) {
+        ShizukuActivationDialog(
+            show = true,
+            onDismissRequest = { showShizukuActivation = false },
+            context = context,
+            onShowNotInstalled = { showShizukuNotInstalled = true }
+        )
+    }
+
+    ScreenScaffold(
+        scrollState = listState,
+        timeText = { WysTimeText() }
+    ) { contentPadding ->
+        TransformingLazyColumn(
+            state = listState,
+            contentPadding = contentPadding,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth(),
+            rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)
+        ) {
+            item {
+                ListHeader(
+                    transformation = SurfaceTransformation(transformationSpec),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                ) {
+                    Text(text = "视频缓存位置", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            item {
+                TitleCard(
+                    onClick = {
+                        cacheLocation = "internal"
+                        SharedPreferencesUtil.putString("cache_location", "internal")
+                    },
+                    transformation = SurfaceTransformation(transformationSpec),
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (cacheLocation == "internal") {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "已选择",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("内部存储")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec),
+                    colors = if (cacheLocation == "internal") {
+                        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                    } else CardDefaults.cardColors()
+                ) {
+                    Text(
+                        "应用专有目录 (无需额外授权, 卸载应用时会同时删除)",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            item {
+                TitleCard(
+                    onClick = {
+                        cacheLocation = "external"
+                        SharedPreferencesUtil.putString("cache_location", "external")
+                        // Prompt for permissions if setting to external
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                            if (androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                storagePermissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.READ_EXTERNAL_STORAGE,
+                                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                    )
+                                )
+                            }
+                        } else {
+                            if (!ShizukuUtils.hasManageExternalStoragePermission(context) && !ShizukuUtils.isShizukuAuthorized()) {
+                                showShizukuDialog = true
+                            } else if (!ShizukuUtils.hasManageExternalStoragePermission(context) && ShizukuUtils.isShizukuAuthorized()) {
+                                ShizukuUtils.grantManageExternalStorage(context)
+                            }
+                        }
+                    },
+                    transformation = SurfaceTransformation(transformationSpec),
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (cacheLocation == "external") {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "已选择",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("外部存储 (Movies)")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec),
+                    colors = if (cacheLocation == "external") {
+                        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                    } else CardDefaults.cardColors()
+                ) {
+                    Text(
+                        "公共目录 (需授权全部文件访问权限, 卸载不会丢失)",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+            item {
+                Button(
+                    onClick = {
+                        if (!hasPermission) {
+                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                                storagePermissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.READ_EXTERNAL_STORAGE,
+                                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                    )
+                                )
+                            } else {
+                                showShizukuDialog = true
+                            }
+                        }
+                    },
+                    colors = if (hasPermission){
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    else{
+                        ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )},
+                    transformation = SurfaceTransformation(transformationSpec),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "所有文件访问权限", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (hasPermission) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.Default.Check, contentDescription = "Granted", modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(20.dp)) }
+        }
+    }
+}
+
+@Composable
+fun SettingPlayerChooseScreen(navController: NavController) {
+    val listState = rememberTransformingLazyColumnState()
+    val transformationSpec = rememberTransformationSpec()
+    var currentPlayer by remember { mutableStateOf(SharedPreferencesUtil.getString("player", "apsisPlayer")) }
+
+    ScreenScaffold(
+        scrollState = listState,
+        timeText = { WysTimeText() }
+    ) { contentPadding ->
+        TransformingLazyColumn(
+            state = listState,
+            contentPadding = contentPadding,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
+            item {
+                ListHeader(
+                    transformation = SurfaceTransformation(transformationSpec),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                ) {
+                    Text(text = "默认播放器", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            item {
+                TitleCard(
+                    onClick = {
+                        currentPlayer = "apsisPlayer"
+                        SharedPreferencesUtil.putString("player", "apsisPlayer")
+                    },
+                    transformation = SurfaceTransformation(transformationSpec),
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (currentPlayer == "apsisPlayer") {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "已选择",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Apsis Player (内置)")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec),
+                    colors = if (currentPlayer == "apsisPlayer") {
+                        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                    } else CardDefaults.cardColors()
+                ) {
+                    Text(
+                        "Orbit 内置的播放引擎，基于 IJKPlayer，体验更加无缝，支持进度上报等独占功能",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+            
+            item {
+                TitleCard(
+                    onClick = {
+                        currentPlayer = "aliangPlayer"
+                        SharedPreferencesUtil.putString("player", "aliangPlayer")
+                    },
+                    transformation = SurfaceTransformation(transformationSpec),
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (currentPlayer == "aliangPlayer") {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "已选择",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("凉腕播放器")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec),
+                    colors = if (currentPlayer == "aliangPlayer") {
+                        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                    } else CardDefaults.cardColors()
+                ) {
+                    Text(
+                        "另一个优秀的第三方手表视频播放器，首创缩放视频功能，功能更加丰富",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+            item {
+                val qualityOptions = listOf(
+                    16 to "360p",
+                    32 to "480p",
+                    64 to "720p",
+                    80 to "1080p"
+                )
+                val currentQn = SharedPreferencesUtil.getInt("play_qn", 16)
+                val currentIndex = qualityOptions.indexOfFirst { it.first == currentQn }.coerceAtLeast(0)
+                val label = qualityOptions[currentIndex].second
+
+                Button(
+                    onClick = { navController.navigate("settings_video_quality") },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    transformation = SurfaceTransformation(transformationSpec),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                ) {
+                    Text(text = "视频清晰度: $label", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            item {Spacer(Modifier.height(24.dp))}
+        }
+    }
+}
+
+@Composable
+fun SettingVideoQualityScreen(navController: NavController) {
+    val listState = rememberTransformingLazyColumnState()
+    val transformationSpec = rememberTransformationSpec()
+    var currentQn by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("play_qn", 16)) }
+    val isLoggedIn = CookieManager.getCookie().contains("SESSDATA")
+    val context = LocalContext.current
+
+    val qualityOptions = listOf(
+        Triple(16, "360p", "流畅"),
+        Triple(32, "480p", "清晰"),
+        Triple(64, "720p", "高清 (需要登录)"),
+        Triple(80, "1080p", "超清 (需要登录)")
+    )
+
+    ScreenScaffold(
+        scrollState = listState,
+        timeText = { WysTimeText() }
+    ) { contentPadding ->
+        TransformingLazyColumn(
+            state = listState,
+            contentPadding = contentPadding,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth(),
+            rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)
+        ) {
+            item {
+                ListHeader(
+                    transformation = SurfaceTransformation(transformationSpec),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                ) {
+                    Text(text = "视频清晰度", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            qualityOptions.forEach { option ->
+                item {
+                    val (qn, label, desc) = option
+                    val isLocked = qn >= 64 && !isLoggedIn
+
+                    Button(
+                        onClick = {
+                            if (isLocked) {
+                                RoundToast.show(context, "请先登录以解锁更高清晰度")
+                            } else {
+                                currentQn = qn
+                                SharedPreferencesUtil.putInt("play_qn", qn)
+                            }
+                        },
+                        transformation = SurfaceTransformation(transformationSpec),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .transformedHeight(this, transformationSpec),
+                        colors = if (currentQn == qn) {
+                            ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                        } else {
+                            ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = label, 
+                                    color = if (isLocked) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = desc,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isLocked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (currentQn == qn) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "已选择",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(24.dp)) }
         }
     }
 }

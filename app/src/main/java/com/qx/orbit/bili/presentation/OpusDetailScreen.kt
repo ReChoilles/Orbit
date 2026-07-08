@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import com.qx.orbit.bili.util.fixCoverUrl
 import androidx.core.net.toUri
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.Placeholder
@@ -216,13 +217,13 @@ fun OpusContentPage(
     val allImages = remember(item.topImages, item.paragraphs) {
         val list = mutableListOf<String>()
         item.topImages.forEach { imgUrl ->
-            val fixedUrl = fixUrl(imgUrl)
+            val fixedUrl = imgUrl.fixCoverUrl()
             list.add(fixedUrl)
         }
         item.paragraphs?.forEach { p ->
             if (p.type == OpusParagraph.TYPE_PIC) {
                 p.pics.forEach { imgUrl ->
-                    val fixedUrl = fixUrl(imgUrl)
+                    val fixedUrl = imgUrl.fixCoverUrl()
                     list.add(fixedUrl)
                 }
             }
@@ -265,7 +266,7 @@ fun OpusContentPage(
 
         if (item.cover.isNotEmpty()) {
             item {
-                val coverUrl = fixUrl(item.cover)
+                val coverUrl = item.cover.fixCoverUrl()
                 SubcomposeAsyncImage(
                     model = ImageRequest.Builder(context).data(coverUrl).crossfade(true).build(),
                     contentDescription = null,
@@ -340,7 +341,7 @@ fun OpusContentPage(
                     }
                 ) {
                     item.topImages.forEach { imgUrl ->
-                        val fixedUrl = fixUrl(imgUrl)
+                        val fixedUrl = imgUrl.fixCoverUrl()
                         SubcomposeAsyncImage(
                             model = ImageRequest.Builder(context).data(fixedUrl).crossfade(true).build(),
                             contentDescription = null,
@@ -444,7 +445,7 @@ fun OpusContentPage(
                     OpusParagraph.TYPE_PIC -> {
                         Column {
                             paragraph.pics.forEach { imgUrl ->
-                                val fixedUrl = fixUrl(imgUrl)
+                                val fixedUrl = imgUrl.fixCoverUrl()
                                 SubcomposeAsyncImage(
                                     model = ImageRequest.Builder(context).data(fixedUrl).crossfade(true).build(),
                                     contentDescription = null,
@@ -593,15 +594,3 @@ fun OpusCommentsPage(
     }
 }
 
-private fun fixUrl(url: String): String {
-    val base = when {
-        url.startsWith("//") -> "https:$url"
-        url.startsWith("http://") -> url.replaceFirst("http://", "https://")
-        else -> url
-    }
-    if (base.contains("@")) return base.replace(".avif", ".webp")
-    if (base.contains("hdslb.com") || base.contains("bfs/")) {
-        return base.replace(".avif", ".webp") + "@480w.webp"
-    }
-    return base.replace(".avif", ".webp")
-}

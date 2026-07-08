@@ -7,6 +7,7 @@ import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Deferred
+import com.qx.orbit.bili.util.fixCoverUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -175,7 +176,7 @@ object SearchApi {
                 title = htmlToString(item.title ?: ""),
                 upName = item.author ?: "",
                 view = playCountStr.ifEmpty { StringUtil.toWan(item.play.toLong()) },
-                cover = fixCoverUrl(item.pic ?: ""),
+                cover = (item.pic ?: "").fixCoverUrl(),
                 aid = item.aid,
                 bvid = item.bvid ?: "",
                 cid = item.cid
@@ -206,7 +207,7 @@ object SearchApi {
                     sign = item.usign ?: "",
                     fans = item.fans,
                     level = item.level,
-                    avatar = fixCoverUrl(item.upic ?: ""),
+                    avatar = (item.upic ?: "").fixCoverUrl(),
                     official = officialType,
                     officialDesc = officialDesc,
                     vip_role = vipStatus,
@@ -226,7 +227,7 @@ object SearchApi {
             result.add(ArticleCard(
                 title = htmlToString(item.title ?: ""),
                 id = item.id,
-                cover = fixCoverUrl(item.image_urls?.firstOrNull() ?: ""),
+                cover = (item.image_urls?.firstOrNull() ?: "").fixCoverUrl(),
                 upName = item.author_name ?: "",
                 view = StringUtil.toWan(item.view.toLong())
             ))
@@ -248,8 +249,8 @@ object SearchApi {
                 title = htmlToString(item.title ?: ""),
                 uname = item.uname ?: "",
                 online = item.online,
-                user_cover = fixCoverUrl(item.user_cover ?: ""),
-                cover = fixCoverUrl(item.cover ?: ""),
+                user_cover = (item.user_cover ?: "").fixCoverUrl(),
+                cover = (item.cover ?: "").fixCoverUrl(),
                 live_status = item.live_status
             ))
         }
@@ -262,7 +263,6 @@ object SearchApi {
         for (el in input) {
             if (!el.isJsonObject) continue
             val item = try { GsonConfig.gson.fromJson(el, SearchBangumiItem::class.java) } catch (e: Exception) { null } ?: continue
-            val obj = el.asJsonObject
             
             val areaStr = if (item.areas != null && item.areas.isJsonPrimitive) item.areas.asString else ""
             val idToUse = if (item.season_id > 0) item.season_id else if (item.media_id > 0) item.media_id else item.ep_id
@@ -295,7 +295,7 @@ object SearchApi {
                     title = htmlToString(item.title ?: ""),
                     upName = item.index_show ?: areaStr,
                     view = progressStr,
-                    cover = fixCoverUrl(item.cover ?: item.pic ?: ""),
+                    cover = (item.cover ?: item.pic ?: "").fixCoverUrl(),
                     aid = idToUse,
                     bvid = "",
                     cid = item.season_id,
@@ -337,9 +337,4 @@ object SearchApi {
         .replace("&quot;", "\"")
         .replace("&amp;", "&")
 
-    private fun fixCoverUrl(url: String): String {
-        if (url.startsWith("//")) return "https:$url"
-        if (url.startsWith("http://")) return url.replaceFirst("http://", "https://")
-        return url
-    }
 }

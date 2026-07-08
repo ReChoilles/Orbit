@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import coil.compose.AsyncImage
 import com.qx.orbit.bili.R
+import com.qx.orbit.bili.util.fixCoverUrl
 
 @Composable
 fun UserAvatar(
@@ -55,11 +56,7 @@ fun UserAvatar(
             .clip(CircleShape)
 
         if (avatarUrl.isNotEmpty()) {
-            val baseAvatarUrl = when {
-                avatarUrl.startsWith("//") -> "https:$avatarUrl"
-                avatarUrl.startsWith("http://") -> avatarUrl.replaceFirst("http://", "https://")
-                else -> avatarUrl
-            }
+            val baseAvatarUrl = avatarUrl.fixCoverUrl()
             val fixedAvatarUrl = if (baseAvatarUrl.contains("@")) baseAvatarUrl else "${baseAvatarUrl}@150w_150h_1c.webp"
             
             AsyncImage(

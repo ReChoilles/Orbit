@@ -20,6 +20,8 @@ import androidx.wear.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.runtime.Composable
@@ -36,13 +38,17 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material.dialog.Dialog
+import androidx.wear.compose.material3.IconButton
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.util.SharedPreferencesUtil
@@ -86,16 +92,17 @@ fun PlayerCustomizationScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Left Button
-                Box(
-                    modifier = Modifier.size(48.dp).offset(x = (-16).dp).clickable {
-                        configuringSide = 0
-                        showActionDialog = true
+                IconButton(
+                    onClick = {
+                    configuringSide = 0
+                    showActionDialog = true
                     },
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.size(36.dp).offset(x = (-16).dp),
+
                 ) {
                     PlayerActionIcon(action = leftBtnAction)
                     if (leftBtnAction == 0) {
-                        Text(text = "左", color = Color.Gray, fontSize = 12.sp)
+                        Text(text = "左", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 
@@ -108,16 +115,17 @@ fun PlayerCustomizationScreen(
                 )
                 
                 // Right Button
-                Box(
-                    modifier = Modifier.size(48.dp).offset(x = 16.dp).clickable {
+                IconButton(
+                    onClick = {
                         configuringSide = 1
                         showActionDialog = true
                     },
-                    contentAlignment = Alignment.Center
-                ) {
+                    modifier = Modifier.size(36.dp).offset(x = 16.dp),
+
+                    ) {
                     PlayerActionIcon(action = rightBtnAction)
                     if (rightBtnAction == 0) {
-                        Text(text = "右", color = Color.Gray, fontSize = 12.sp)
+                        Text(text = "右", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
@@ -157,16 +165,20 @@ fun PlayerCustomizationScreen(
             showDialog = showActionDialog,
             onDismissRequest = { showActionDialog = false }
         ) {
+            val listState = rememberTransformingLazyColumnState()
+            val transformationSpec = rememberTransformationSpec()
+
             TransformingLazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                item { Spacer(modifier = Modifier.height(16.dp)) }
                 item {
-                    ListHeader {
+                    ListHeader{
                         Text(text = if (configuringSide == 0) "设置左侧按钮" else "设置右侧按钮", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
                 }
-                item { Spacer(modifier = Modifier.height(8.dp)) }
                 itemsIndexed(actionNames) { index, name ->
                     val otherBtnAction = if (configuringSide == 0) rightBtnAction else leftBtnAction
                     val isSelected = index == if (configuringSide == 0) leftBtnAction else rightBtnAction
@@ -190,7 +202,17 @@ fun PlayerCustomizationScreen(
                         } else {
                             ButtonDefaults.filledTonalButtonColors()
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        icon = {
+                            if (isSelected) {
+                            Icon(Icons.Default.Check,contentDescription = null)
+                            }else if (isDisabled){
+                                Icon(Icons.Default.Close,contentDescription = null)
+                            }
+                        },
+                        transformation = SurfaceTransformation(transformationSpec),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .transformedHeight(this, transformationSpec),
                         enabled = !isDisabled
                     ) {
                         Text(text = name)

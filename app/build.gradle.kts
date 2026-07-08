@@ -16,8 +16,8 @@ android {
         applicationId = "com.qx.orbit.bili"
         minSdk = 23
         targetSdk = 36
-        versionCode = 504
-        versionName = "0.5.4-Alpha"
+        versionCode = 505
+        versionName = "0.5.5-Alpha"
         resValue("string", "app_verCode", versionCode.toString())
         resValue("string", "app_version", versionName.toString())
     }
@@ -127,8 +127,6 @@ dependencies {
 
     // EventBus
     implementation(libs.eventbus)
-
-    androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.test.manifest)
     debugImplementation(libs.ui.tooling)

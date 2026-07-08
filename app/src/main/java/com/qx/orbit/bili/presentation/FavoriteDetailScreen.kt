@@ -183,7 +183,7 @@ fun FavoriteDetailScreen(
                     RecommendVideoCard(
                         item = videoCard,
                         onClick = {
-                            navController.navigate("video_detail/${videoCard.bvid}/${videoCard.aid}")
+                            navController.navigate("detail/${videoCard.bvid}/${videoCard.aid}")
                         },
                         transformation = SurfaceTransformation(transformationSpec)
                     )
