@@ -138,7 +138,7 @@ public class BiliProtobufDanmakuParser extends BaseDanmakuParser {
                         JSONArray jsonArray = new JSONArray(content);
                         String[] textArr = new String[jsonArray.length()];
                         for(int i=0; i<textArr.length; i++){
-                            textArr[i] = jsonArray.getString(i);
+                            textArr[i] = jsonArray.optString(i, "");
                         }
                         
                         if (textArr.length >= 5) {
