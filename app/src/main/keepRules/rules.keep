@@ -3,9 +3,9 @@
 -dontwarn tv.danmaku.ijk.media.player.**
 
 # DanmakuFlameMaster + JNI
--keep class master.flame.danmaku.** { *; }
+-keep class rj.dfmnext.** { *; }
 -keep class tv.cjump.jni.** { *; }
--dontwarn master.flame.danmaku.**
+-dontwarn rj.dfmnext.**
 -dontwarn tv.cjump.jni.**
 
 # Brotli

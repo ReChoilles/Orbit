@@ -114,13 +114,13 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import master.flame.danmaku.danmaku.loader.android.DanmakuLoaderFactory
-import master.flame.danmaku.danmaku.model.android.DanmakuContext
-import master.flame.danmaku.danmaku.model.android.Danmakus
-import master.flame.danmaku.danmaku.parser.BaseDanmakuParser
-import master.flame.danmaku.danmaku.parser.android.BiliDanmukuParser
-import master.flame.danmaku.danmaku.parser.android.BiliProtobufDanmakuParser
-import master.flame.danmaku.ui.widget.DanmakuView
+import rj.dfmnext.danmaku.parser.android.AndroidFileSource
+import rj.dfmnext.danmaku.model.android.DanmakuContext
+import rj.dfmnext.danmaku.model.android.Danmakus
+import rj.dfmnext.danmaku.parser.BaseDanmakuParser
+import rj.dfmnext.danmaku.parser.android.BiliDanmukuParser
+import rj.dfmnext.danmaku.parser.android.BiliProtobufDanmakuParser
+import rj.dfmnext.ui.widget.DanmakuView
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
@@ -534,10 +534,9 @@ fun PlayerScreen(
                     xmlFile = File(fallbackPath.toUri().path ?: "")
                 }
                 if (xmlFile.exists()) {
-                    val loader = DanmakuLoaderFactory.create(DanmakuLoaderFactory.TAG_BILI)
-                    loader.load(xmlFile.inputStream())
+                    val source = AndroidFileSource(xmlFile.inputStream())
                     val parser = BiliDanmukuParser()
-                    parser.load(loader.dataSource)
+                    parser.load(source)
                     danmakuView.prepare(parser, ctx)
                 } else {
                     danmakuView.prepare(object : BaseDanmakuParser() {
@@ -734,7 +733,7 @@ fun PlayerScreen(
                                 item.priority = 1
                                 item.textColor = color
                                 item.textSize = textSize * (context.resources.displayMetrics.density - 0.6f)
-                                item.time = danmakuView.currentTime + 100
+                                item.time = danmakuView.getCurrentTime() + 100
                                 
                                 if (borderColor != 0) {
                                     item.borderColor = borderColor
