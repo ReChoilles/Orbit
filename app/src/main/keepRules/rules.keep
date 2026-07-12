@@ -3,10 +3,10 @@
 -dontwarn tv.danmaku.ijk.media.player.**
 
 # DanmakuFlameMaster + JNI
--keep class rj.dfmnext.** { *; }
+-keep class io.github.ynotbili.dfmnext.** { *; }
 -keep class master.flame.danmaku.** { *; }
 -keep class tv.cjump.jni.** { *; }
--dontwarn rj.dfmnext.**
+-dontwarn io.github.ynotbili.dfmnext.**
 -dontwarn master.flame.danmaku.**
 -dontwarn tv.cjump.jni.**
 

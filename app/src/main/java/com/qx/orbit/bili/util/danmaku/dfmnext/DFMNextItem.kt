@@ -2,7 +2,7 @@ package com.qx.orbit.bili.util.danmaku.dfmnext
 
 import com.qx.orbit.bili.util.danmaku.base.DanmakuItem
 
-class DFMNextItem(internal val engine: rj.dfmnext.danmaku.model.BaseDanmaku) : DanmakuItem {
+class DFMNextItem(internal val engine: io.github.ynotbili.dfmnext.danmaku.model.BaseDanmaku) : DanmakuItem {
     override var text: CharSequence?
         get() = engine.text
         set(v) { engine.text = v }

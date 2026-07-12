@@ -3,7 +3,7 @@ package com.qx.orbit.bili.util.danmaku.dfmnext
 import com.qx.orbit.bili.util.danmaku.base.DanmakuConfig
 
 class DFMNextConfig : DanmakuConfig {
-    internal val engine = rj.dfmnext.danmaku.model.android.DanmakuContext.create()
+    internal val engine = io.github.ynotbili.dfmnext.danmaku.model.android.DanmakuContext.create()
 
     val mDanmakuFactory get() = engine.mDanmakuFactory
 

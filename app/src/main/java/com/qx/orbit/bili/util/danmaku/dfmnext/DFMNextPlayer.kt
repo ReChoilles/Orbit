@@ -8,7 +8,7 @@ import com.qx.orbit.bili.util.danmaku.base.DanmakuParser
 import com.qx.orbit.bili.util.danmaku.base.DanmakuPlayer
 
 class DFMNextPlayer(context: Context) : DanmakuPlayer {
-    private val engine = rj.dfmnext.ui.widget.DanmakuView(context)
+    private val engine = io.github.ynotbili.dfmnext.ui.widget.DanmakuView(context)
 
     override val view: View get() = engine
 

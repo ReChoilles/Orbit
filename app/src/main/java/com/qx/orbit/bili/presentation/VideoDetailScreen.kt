@@ -929,7 +929,7 @@ fun VideoInfoPage(
                                 )
                                 Spacer(modifier = Modifier.width(2.dp))
                                 Text(
-                                    modifier = Modifier.height(14.dp),
+                                    modifier = Modifier,
                                     text = formatCount(videoInfo.stats?.danmaku ?: 0),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
