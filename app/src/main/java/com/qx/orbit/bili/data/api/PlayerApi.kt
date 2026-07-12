@@ -85,6 +85,10 @@ object PlayerApi {
     )
 
     internal data class SubtitleLinkData(
+        @SerializedName("subtitle") val subtitle: SubtitleWrapper? = null
+    )
+
+    internal data class SubtitleWrapper(
         @SerializedName("subtitles") val subtitles: List<SubtitleDataInner>? = null
     )
 
@@ -93,7 +97,9 @@ object PlayerApi {
         @SerializedName("lan") val lan: String? = null,
         @SerializedName("lan_doc") val lan_doc: String? = null,
         @SerializedName("subtitle_url") val subtitle_url: String? = null,
-        @SerializedName("ai_status") val ai_status: Int = 0
+        @SerializedName("ai_status") val ai_status: Int = 0,
+        @SerializedName("ai_type") val ai_type: Int = 0,
+        @SerializedName("type") val type: Int = 0
     )
 
     internal data class ViewPointData(
@@ -319,11 +325,14 @@ object PlayerApi {
         val type = object : TypeToken<ApiResponse<SubtitleLinkData>>() {}.type
         val resp: ApiResponse<SubtitleLinkData>? = GsonConfig.gson.fromJson(jsonElement, type)
         if (resp == null || !resp.isSuccess || resp.data == null) return@withContext emptyArray()
-        resp.data.subtitles?.map { s ->
+        resp.data.subtitle?.subtitles?.map { s ->
+            val isAI = s.ai_status == 1 || s.ai_status == 2 || s.ai_type == 1 || s.type == 1
+            val baseLang = s.lan_doc ?: s.lan ?: ""
+            val displayLang = if (isAI && !baseLang.contains("AI", ignoreCase = true)) "$baseLang (AI)" else baseLang
             SubtitleLink(
                 id = s.id,
-                isAI = s.ai_status == 1,
-                lang = s.lan_doc ?: s.lan ?: "",
+                isAI = isAI,
+                lang = displayLang,
                 url = s.subtitle_url ?: ""
             )
         }?.toTypedArray() ?: emptyArray()

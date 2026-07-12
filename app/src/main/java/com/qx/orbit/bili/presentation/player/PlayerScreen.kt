@@ -37,6 +37,14 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import androidx.wear.compose.foundation.lazy.itemsIndexed
+import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
+import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.lazy.rememberTransformationSpec
+import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -53,6 +61,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.Composable
@@ -82,6 +91,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -105,6 +115,7 @@ import com.qx.orbit.bili.data.api.HistoryApi
 import com.qx.orbit.bili.data.api.LiveApi
 import com.qx.orbit.bili.data.api.PlayerApi
 import com.qx.orbit.bili.data.model.PlayerData
+import com.qx.orbit.bili.data.model.Subtitle
 import com.qx.orbit.bili.data.remote.CookieManager
 import com.qx.orbit.bili.presentation.ui.components.RoundToast
 import com.qx.orbit.bili.presentation.ui.components.findActivity
@@ -164,8 +175,14 @@ fun PlayerScreen(
     var showDanmaku by remember { mutableStateOf(SharedPreferencesUtil.getBoolean("player_danmaku_default_show", true)) }
     var isPlaying by remember { mutableStateOf(false) }
     
-    val leftBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_left", 2)) }
-    val rightBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_right", 1)) }
+    val leftTopBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_left", 2)) }
+    val leftBottomBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_left_bottom", 0)) }
+    val rightTopBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_right", 1)) }
+    val rightBottomBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_right_bottom", 0)) }
+    
+    var subtitleLinks by remember { mutableStateOf(emptyArray<com.qx.orbit.bili.data.model.SubtitleLink>()) }
+    var showSubtitleDialog by remember { mutableStateOf(false) }
+    
     var showVolumeScreen by remember { mutableStateOf(false) }
     val volumeFocusRequester = remember { FocusRequester() }
 
@@ -195,6 +212,9 @@ fun PlayerScreen(
     var totalDuration by remember { mutableLongStateOf(0L) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var bufferSpeed by remember { mutableStateOf("") }
+    var subtitles by remember { mutableStateOf(emptyArray<Subtitle>()) }
+    var currentSubtitleId by remember { mutableLongStateOf(0L) }
+    var currentSubtitle by remember { mutableStateOf<String?>(null) }
     
     var dragProgress by remember { mutableFloatStateOf(-1f) }
     var isLongPressSpeedUp by remember { mutableStateOf(false) }
@@ -445,7 +465,13 @@ fun PlayerScreen(
         var heartbeatTick = 0
         while(isPlaying && isPrepared) {
             currentProgress = mediaPlayer.currentPosition
-            
+
+            if (subtitles.isNotEmpty()) {
+                val timeSec = currentProgress / 1000.0
+                val matched = subtitles.find { timeSec >= it.from && timeSec < it.to }
+                currentSubtitle = matched?.content
+            }
+
             if (heartbeatTick >= 15) {
                 heartbeatTick = 0
                 val pos = currentProgress / 1000
@@ -506,6 +532,8 @@ fun PlayerScreen(
                 CookiesApi.checkCookies()
             }
 
+            val danmakuTextScale = SharedPreferencesUtil.getFloat("player_danmaku_textsize", 1.0f) * 0.8f
+
             if (!isLive && !isLocal) {
                 val danmakuSegment = DanmakuApi.getVideoDanmakuSegment(playerData.aid, playerData.cid, 1)
                 val parser = createProtobufParser()
@@ -531,7 +559,7 @@ fun PlayerScreen(
                         setMaximumLines(maxLinesPair)
                     }
 
-                    setScaleTextSize(0.8f)
+                    setScaleTextSize(danmakuTextScale)
                     setDanmakuTransparency(0.4f)
                 }
                 danmakuConfig = config
@@ -557,7 +585,7 @@ fun PlayerScreen(
                         setMaximumLines(maxLinesPair)
                     }
 
-                    setScaleTextSize(0.8f)
+                    setScaleTextSize(danmakuTextScale)
                     setDanmakuTransparency(0.4f)
                 }
                 danmakuConfig = config
@@ -579,12 +607,49 @@ fun PlayerScreen(
                     val enableAdvanced = SharedPreferencesUtil.getBoolean("player_danmaku_advanced_enable", true)
                     setSpecialDanmakuVisibility(enableAdvanced)
                     setDuplicateMerging(true)
-                    setScaleTextSize(0.8f)
+                    setScaleTextSize(danmakuTextScale)
                     setDanmakuTransparency(0.4f)
                 }
                 danmakuConfig = config
                 danmakuPlayer.prepare(createEmptyParser(), config)
                 danmakuPlayer.enableDrawingCache(true)
+            }
+
+            // Load subtitles
+            if (!isLive) {
+                scope.launch {
+                    try {
+                        if (isLocal) {
+                            var subFile = File("${playerData.videoUrl}.srt")
+                            if (!subFile.exists()) {
+                                val fallbackPath = playerData.videoUrl.replace(".mp4", ".srt").replace(".m4s", ".srt")
+                                subFile = File(fallbackPath.toUri().path ?: "")
+                            }
+                            if (subFile.exists() && SharedPreferencesUtil.getBoolean("player_subtitle_default_show", false)) {
+                                val json = subFile.readText()
+                                val jsonObj = com.google.gson.Gson().fromJson(json, Map::class.java)
+                                val body = (jsonObj?.get("body") as? List<*>)?.mapNotNull { entry ->
+                                    val m = entry as? Map<*, *> ?: return@mapNotNull null
+                                    Subtitle(
+                                        content = m["content"]?.toString() ?: "",
+                                        from = (m["from"] as? Number)?.toDouble() ?: 0.0,
+                                        to = (m["to"] as? Number)?.toDouble() ?: 0.0
+                                    )
+                                }?.toTypedArray() ?: emptyArray()
+                                subtitles = body
+                                currentSubtitleId = -1L
+                            }
+                        } else {
+                            val links = PlayerApi.getSubtitleLinks(playerData.aid, playerData.cid)
+                            subtitleLinks = links
+                            if (links.isNotEmpty() && SharedPreferencesUtil.getBoolean("player_subtitle_default_show", false)) {
+                                val idx = links.indexOfFirst { !it.isAI }.coerceAtLeast(0)
+                                subtitles = PlayerApi.getSubtitle(links[idx].url)
+                                currentSubtitleId = links[idx].id
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
             }
 
             val result = if (isLive || isLocal) playerData 
@@ -613,7 +678,7 @@ fun PlayerScreen(
                     mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", 0)
                     mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", 1)
                 }
-                val playUrl = if (isAudioOnlyMode && result.audioUrl.isNotEmpty()) result.audioUrl else result.videoUrl
+                val playUrl = if (!isLocal && isAudioOnlyMode && result.audioUrl.isNotEmpty()) result.audioUrl else result.videoUrl
                 mediaPlayer.dataSource = playUrl
                 if (effectiveUseTexture) {
                     if (textureSurface != null) {
@@ -1238,22 +1303,29 @@ fun PlayerScreen(
             }
         }
 
+        currentSubtitle?.let { text ->
+            Text(
+                text = text,
+                color = Color.White,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 40.dp, start = 8.dp, end = 8.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+        }
+
         errorMessage?.let {
-            Row(
+            Text(
+                text = it,
+                color = Color.White,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(50)),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ){
-                Text(
-                    text = it,
-                    color = Color.White,
-                    modifier = Modifier
-                        .background(Color(0x88000000))
-                        .padding(8.dp)
-                )
-            }
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(50))
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            )
         }
 
         AnimatedVisibility(
@@ -1378,11 +1450,31 @@ fun PlayerScreen(
                                     )
                                 }
                             }
+                            4 -> {
+                                IconButton(
+                                    onClick = { showSubtitleDialog = true },
+                                    modifier = modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_subtitle_setting),
+                                        contentDescription = "Subtitle Settings",
+                                        tint = Color.White.copy(alpha = 0.9f),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    if (leftBtnAction != 0) {
-                        renderCustomButton(leftBtnAction, Modifier.align(Alignment.CenterStart).offset(x = (-16).dp))
+                    if (leftTopBtnAction != 0 || leftBottomBtnAction != 0) {
+                        Column(
+                            modifier = Modifier.align(Alignment.CenterStart).offset(x = (-16).dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            if (leftTopBtnAction != 0) renderCustomButton(leftTopBtnAction, Modifier)
+                            if (leftBottomBtnAction != 0) renderCustomButton(leftBottomBtnAction, Modifier)
+                        }
                     }
 
                     IconButton(
@@ -1428,8 +1520,15 @@ fun PlayerScreen(
                         )
                     }
 
-                    if (rightBtnAction != 0) {
-                        renderCustomButton(rightBtnAction, Modifier.align(Alignment.CenterEnd).offset(x = 16.dp))
+                    if (rightTopBtnAction != 0 || rightBottomBtnAction != 0) {
+                        Column(
+                            modifier = Modifier.align(Alignment.CenterEnd).offset(x = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            if (rightTopBtnAction != 0) renderCustomButton(rightTopBtnAction, Modifier)
+                            if (rightBottomBtnAction != 0) renderCustomButton(rightBottomBtnAction, Modifier)
+                        }
                     }
                 }
 
@@ -1542,6 +1641,78 @@ fun PlayerScreen(
                     showTextureDialog.value = false
                 }
             )
+        }
+
+        if (showSubtitleDialog) {
+            Dialog(
+                showDialog = showSubtitleDialog,
+                onDismissRequest = { showSubtitleDialog = false }
+            ) {
+                val listState = rememberTransformingLazyColumnState()
+                val transformationSpec = rememberTransformationSpec()
+
+                TransformingLazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    item { Spacer(modifier = Modifier.height(16.dp)) }
+                    item {
+                        ListHeader {
+                            Text(text = "选择字幕", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    
+                    item {
+                        val isSelected = currentSubtitleId == 0L
+                        androidx.wear.compose.material3.Button(
+                            onClick = {
+                                subtitles = emptyArray()
+                                currentSubtitleId = 0L
+                                showSubtitleDialog = false
+                            },
+                            colors = if (isSelected) androidx.wear.compose.material3.ButtonDefaults.buttonColors() else androidx.wear.compose.material3.ButtonDefaults.filledTonalButtonColors(),
+                            icon = {
+                                if (isSelected) {
+                                    androidx.wear.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Check, contentDescription = null)
+                                }
+                            },
+                            transformation = SurfaceTransformation(transformationSpec),
+                            modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec)
+                        ) {
+                            Text(text = "关闭字幕")
+                        }
+                    }
+
+                    itemsIndexed(subtitleLinks.toList()) { _, link ->
+                        val isSelected = currentSubtitleId == link.id
+                        androidx.wear.compose.material3.Button(
+                            onClick = {
+                                scope.launch {
+                                    try {
+                                        subtitles = PlayerApi.getSubtitle(link.url)
+                                        currentSubtitleId = link.id
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(context, "加载字幕失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                    showSubtitleDialog = false
+                                }
+                            },
+                            colors = if (isSelected) androidx.wear.compose.material3.ButtonDefaults.buttonColors() else androidx.wear.compose.material3.ButtonDefaults.filledTonalButtonColors(),
+                            icon = {
+                                if (isSelected) {
+                                    androidx.wear.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Check, contentDescription = null)
+                                }
+                            },
+                            transformation = SurfaceTransformation(transformationSpec),
+                            modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec)
+                        ) {
+                            Text(text = link.lang)
+                        }
+                    }
+                    item { Spacer(modifier = Modifier.height(32.dp)) }
+                }
+            }
         }
     }
 }

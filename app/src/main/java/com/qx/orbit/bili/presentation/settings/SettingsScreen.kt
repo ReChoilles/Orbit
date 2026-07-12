@@ -1,6 +1,7 @@
 package com.qx.orbit.bili.presentation.settings
 
 import android.Manifest
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,12 +11,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
@@ -56,6 +60,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.wear.compose.material3.SurfaceTransformation
 import com.qx.orbit.bili.presentation.MainActivity
@@ -69,6 +74,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.qx.orbit.bili.R
+import androidx.compose.ui.platform.LocalLocale
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -378,6 +384,7 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                 Triple("player_doublemove", "缩放时可移动", true),
                 Triple("player_one_finger_zoom", "单指缩放", false),
                 Triple("player_danmaku_default_show", "弹幕默认开启", true),
+                Triple("player_subtitle_default_show", "CC字幕默认开启", false),
                 Triple("player_danmaku_advanced_enable", "启用高级弹幕", true),
                 Triple("player_danmaku_allowoverlap", "弹幕允许重叠", true),
                 Triple("player_danmaku_mergeduplicate", "合并重复弹幕", false),
@@ -490,6 +497,51 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                     val label = if (maxLines == 0) "不限" else "${maxLines}行"
                     Text(text = "弹幕密度: $label", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+            }
+            item {
+                var scaleTextSize by remember {
+                    mutableFloatStateOf(SharedPreferencesUtil.getFloat("player_danmaku_textsize", 1.0f))
+                }
+                TitleCard(
+                    onClick = {},
+                    transformation = SurfaceTransformation(transformationSpec),
+                    title = {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("弹幕字号", style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    text = String.format(LocalLocale.current.platformLocale, "%.1f", scaleTextSize),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Slider(
+                                value = scaleTextSize,
+                                onValueChange = { scaleTextSize = it },
+                                onValueChangeFinished = {
+                                    SharedPreferencesUtil.putFloat("player_danmaku_textsize", scaleTextSize)
+                                },
+                                valueRange = 0.5f..2.0f,
+                                steps = 14,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                    activeTickColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                                    inactiveTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                )
             }
             item { Spacer(Modifier.height(20.dp)) }
         }
@@ -842,6 +894,10 @@ fun SettingDanmakuEngineScreen(navController: NavController) {
             }
 
             val engineOptions = listOf("dfm" to "DanmakuFlameMaster（推荐）", "dfmnext" to "DFMNext")
+            val engineDescriptions = mapOf(
+                "dfm" to "由B站官方出品，稳定的老牌弹幕引擎",
+                "dfmnext" to "基于DanmakuFlameMaster的Kotlin重构版"
+            )
 
             engineOptions.forEach { (value, label) ->
                 item {
@@ -852,17 +908,25 @@ fun SettingDanmakuEngineScreen(navController: NavController) {
                         },
                         transformation = SurfaceTransformation(transformationSpec),
                         title = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (currentDanmakuEngine == value) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "已选择",
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (currentDanmakuEngine == value) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "已选择",
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(label)
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(label)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = engineDescriptions[value] ?: "",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         },
                         modifier = Modifier

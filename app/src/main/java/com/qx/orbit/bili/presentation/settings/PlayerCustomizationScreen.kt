@@ -23,7 +23,6 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -57,13 +56,15 @@ import com.qx.orbit.bili.util.SharedPreferencesUtil
 fun PlayerCustomizationScreen(
     onBack: () -> Unit
 ) {
-    var leftBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_left", 2)) }
-    var rightBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_right", 1)) }
+    var leftTopBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_left", 2)) }
+    var leftBottomBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_left_bottom", 0)) }
+    var rightTopBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_right", 1)) }
+    var rightBottomBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_right_bottom", 0)) }
     
     var showActionDialog by remember { mutableStateOf(false) }
-    var configuringSide by remember { mutableIntStateOf(0) } // 0 for left, 1 for right
+    var configuringSide by remember { mutableIntStateOf(0) } // 0: LT, 1: LB, 2: RT, 3: RB
 
-    val actionNames = listOf("无操作", "弹幕开关", "倍速播放", "音量调节")
+    val actionNames = listOf("无操作", "弹幕开关", "倍速播放", "音量调节", "字幕设置")
 
     Box(
         modifier = Modifier
@@ -91,18 +92,25 @@ fun PlayerCustomizationScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left Button
-                IconButton(
-                    onClick = {
-                    configuringSide = 0
-                    showActionDialog = true
-                    },
-                    modifier = Modifier.size(36.dp).offset(x = (-16).dp),
-
+                // Left Side
+                Column(
+                    modifier = Modifier.offset(x = (-16).dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    PlayerActionIcon(action = leftBtnAction)
-                    if (leftBtnAction == 0) {
-                        Text(text = "左", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyMedium)
+                    IconButton(
+                        onClick = { configuringSide = 0; showActionDialog = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        PlayerActionIcon(action = leftTopBtnAction)
+                        if (leftTopBtnAction == 0) Text(text = "左上", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall, fontSize = 10.sp)
+                    }
+                    IconButton(
+                        onClick = { configuringSide = 1; showActionDialog = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        PlayerActionIcon(action = leftBottomBtnAction)
+                        if (leftBottomBtnAction == 0) Text(text = "左下", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall, fontSize = 10.sp)
                     }
                 }
                 
@@ -114,18 +122,25 @@ fun PlayerCustomizationScreen(
                     modifier = Modifier.size(42.dp)
                 )
                 
-                // Right Button
-                IconButton(
-                    onClick = {
-                        configuringSide = 1
-                        showActionDialog = true
-                    },
-                    modifier = Modifier.size(36.dp).offset(x = 16.dp),
-
+                // Right Side
+                Column(
+                    modifier = Modifier.offset(x = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    IconButton(
+                        onClick = { configuringSide = 2; showActionDialog = true },
+                        modifier = Modifier.size(36.dp)
                     ) {
-                    PlayerActionIcon(action = rightBtnAction)
-                    if (rightBtnAction == 0) {
-                        Text(text = "右", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyMedium)
+                        PlayerActionIcon(action = rightTopBtnAction)
+                        if (rightTopBtnAction == 0) Text(text = "右上", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall, fontSize = 10.sp)
+                    }
+                    IconButton(
+                        onClick = { configuringSide = 3; showActionDialog = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        PlayerActionIcon(action = rightBottomBtnAction)
+                        if (rightBottomBtnAction == 0) Text(text = "右下", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall, fontSize = 10.sp)
                     }
                 }
             }
@@ -176,43 +191,63 @@ fun PlayerCustomizationScreen(
                 item { Spacer(modifier = Modifier.height(16.dp)) }
                 item {
                     ListHeader{
-                        Text(text = if (configuringSide == 0) "设置左侧按钮" else "设置右侧按钮", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        val title = when(configuringSide) {
+                            0 -> "设置左上按钮"
+                            1 -> "设置左下按钮"
+                            2 -> "设置右上按钮"
+                            else -> "设置右下按钮"
+                        }
+                        Text(text = title, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
                 }
                 itemsIndexed(actionNames) { index, name ->
-                    val otherBtnAction = if (configuringSide == 0) rightBtnAction else leftBtnAction
-                    val isSelected = index == if (configuringSide == 0) leftBtnAction else rightBtnAction
-                    val isDisabled = index != 0 && index == otherBtnAction
+                    val isSelected = index == when(configuringSide) {
+                        0 -> leftTopBtnAction
+                        1 -> leftBottomBtnAction
+                        2 -> rightTopBtnAction
+                        else -> rightBottomBtnAction
+                    }
+                    val isDisabled = !isSelected && index != 0 && (
+                        index == leftTopBtnAction || 
+                        index == leftBottomBtnAction || 
+                        index == rightTopBtnAction || 
+                        index == rightBottomBtnAction
+                    )
                     
                     Button(
                         onClick = {
                             if (!isDisabled) {
-                                if (configuringSide == 0) {
-                                    leftBtnAction = index
-                                    SharedPreferencesUtil.putInt("player_custom_btn_left", index)
-                                } else {
-                                    rightBtnAction = index
-                                    SharedPreferencesUtil.putInt("player_custom_btn_right", index)
+                                when(configuringSide) {
+                                    0 -> {
+                                        leftTopBtnAction = index
+                                        SharedPreferencesUtil.putInt("player_custom_btn_left", index)
+                                    }
+                                    1 -> {
+                                        leftBottomBtnAction = index
+                                        SharedPreferencesUtil.putInt("player_custom_btn_left_bottom", index)
+                                    }
+                                    2 -> {
+                                        rightTopBtnAction = index
+                                        SharedPreferencesUtil.putInt("player_custom_btn_right", index)
+                                    }
+                                    3 -> {
+                                        rightBottomBtnAction = index
+                                        SharedPreferencesUtil.putInt("player_custom_btn_right_bottom", index)
+                                    }
                                 }
                                 showActionDialog = false
                             }
                         },
-                        colors = if (isSelected) {
-                            ButtonDefaults.buttonColors()
-                        } else {
-                            ButtonDefaults.filledTonalButtonColors()
-                        },
+                        colors = if (isSelected) androidx.wear.compose.material3.ButtonDefaults.buttonColors() else androidx.wear.compose.material3.ButtonDefaults.filledTonalButtonColors(),
                         icon = {
                             if (isSelected) {
-                            Icon(Icons.Default.Check,contentDescription = null)
-                            }else if (isDisabled){
-                                Icon(Icons.Default.Close,contentDescription = null)
+                                Icon(Icons.Default.Check, contentDescription = null)
+                            } else if (isDisabled) {
+                                Icon(Icons.Default.Close, contentDescription = null)
                             }
                         },
                         transformation = SurfaceTransformation(transformationSpec),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .transformedHeight(this, transformationSpec),
+                        modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
                         enabled = !isDisabled
                     ) {
                         Text(text = name)
@@ -247,6 +282,14 @@ fun PlayerActionIcon(action: Int) {
             Icon(
                 imageVector = Icons.AutoMirrored.Default.VolumeUp,
                 contentDescription = "Volume",
+                tint = Color.White.copy(alpha = 0.9f),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        4 -> {
+            Icon(
+                painter = painterResource(R.drawable.ic_subtitle_setting),
+                contentDescription = "Subtitle",
                 tint = Color.White.copy(alpha = 0.9f),
                 modifier = Modifier.size(24.dp)
             )

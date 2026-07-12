@@ -454,6 +454,9 @@ object VideoDownloadManager {
             val subtitleFile = File(downloadDir, "${info.filename}.srt")
             if (subtitleFile.exists()) subtitleFile.delete()
 
+            val coverFile = File(downloadDir, "${info.filename}.cover.webp")
+            if (coverFile.exists()) coverFile.delete()
+
             downloads.remove(id)
             persistTasks(context)
 

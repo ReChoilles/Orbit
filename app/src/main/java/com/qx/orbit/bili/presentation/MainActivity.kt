@@ -107,6 +107,7 @@ import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import androidx.wear.compose.ui.tooling.preview.WearPreviewDevices
 import androidx.wear.compose.ui.tooling.preview.WearPreviewFontScales
 import com.google.gson.Gson
+import java.net.URLDecoder
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.PlayerData
 import com.qx.orbit.bili.data.model.Reply
@@ -391,7 +392,7 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
                 )
             ) { backStackEntry ->
                 val previousEntry = remember { navController.previousBackStackEntry }
-                val json = backStackEntry.arguments?.getString("playerDataJson") ?: ""
+                val json = URLDecoder.decode(backStackEntry.arguments?.getString("playerDataJson") ?: "", "UTF-8")
                 val playerData = Gson().fromJson(json, PlayerData::class.java) ?: PlayerData(aid = 0L)
                 PlayerScreen(
                     initialData = playerData, 
