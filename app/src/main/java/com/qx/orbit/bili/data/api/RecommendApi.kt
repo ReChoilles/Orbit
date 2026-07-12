@@ -9,6 +9,7 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
+import com.qx.orbit.bili.data.remote.CookieManager
 
 object RecommendApi {
 
@@ -121,7 +122,7 @@ object RecommendApi {
 
     private fun httpGet(url: String): String {
         val request = Request.Builder().url(url)
-            .addHeader("Cookie", com.qx.orbit.bili.data.remote.CookieManager.getCookie())
+            .addHeader("Cookie", CookieManager.getCookie())
             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.95 Safari/537.36")
             .addHeader("Referer", "https://www.bilibili.com/")
             .build()

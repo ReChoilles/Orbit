@@ -35,14 +35,15 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.ListHeader
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
 
 data class MediaItem(
     val uri: Uri,
@@ -59,6 +60,7 @@ fun ImagePickerScreen(
     var selectedUris by remember { mutableStateOf<Set<Uri>>(emptySet()) }
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -99,8 +101,8 @@ fun ImagePickerScreen(
             ) {
                 item {
                     ListHeader(
-                        modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-                        transformation = SurfaceTransformation(transformationSpec)
+                        modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                     ) {
                         Text("选取图片", color = MaterialTheme.colorScheme.primary)
                     }

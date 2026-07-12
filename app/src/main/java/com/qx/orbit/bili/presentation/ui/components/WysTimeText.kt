@@ -28,10 +28,11 @@ import java.text.SimpleDateFormat
 import java.util.Calendar.getInstance
 import java.util.Locale.getDefault
 import kotlin.time.Duration.Companion.seconds
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
 
 @Composable
 fun WysTimeText() {
-    val isRound = LocalConfiguration.current.isScreenRound
+    val isRound = LocalScreenRound.current
     var isImmersive by remember { mutableStateOf(SharedPreferencesUtil.getBoolean("ui_immersive_time", true)) }
     var timeString by remember { 
         mutableStateOf(SimpleDateFormat("HH:mm", getDefault()).format(getInstance().time)) 

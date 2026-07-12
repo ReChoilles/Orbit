@@ -68,10 +68,8 @@ import com.qx.orbit.bili.presentation.theme.extractSeedColorFromBitmap
 import com.qx.orbit.bili.presentation.theme.generateWearColorSchemeFromSeed
 import com.qx.orbit.bili.presentation.theme.ActiveDynamicTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.imageLoader
@@ -88,6 +86,11 @@ import com.qx.orbit.bili.presentation.viewmodel.LiveDetailViewModel
 import com.qx.orbit.bili.util.formatCount
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.viewmodel.DanmakuMessage
+import coil.request.SuccessResult
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -132,7 +135,7 @@ fun LiveDetailScreen(
                 .allowHardware(false)
                 .build()
             val result = context.imageLoader.execute(request)
-            if (result is coil.request.SuccessResult) {
+            if (result is SuccessResult) {
                 val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
                 if (bitmap != null) {
                     val seedColor = extractSeedColorFromBitmap(bitmap)
@@ -266,7 +269,7 @@ fun LiveInfoPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    val isRound = LocalConfiguration.current.isScreenRound
+    val isRound = LocalScreenRound.current
     var isDescExpanded by remember { mutableStateOf(false) }
 
     ScreenScaffold(scrollState = listState, modifier = Modifier.focusRequester(focusRequester)) { contentPadding ->
@@ -296,14 +299,8 @@ fun LiveInfoPage(
                     contentDescription = "Cover",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            if (isRound) {
-                                with(transformationSpec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                         .fillMaxWidth(0.95f)
                         .height(120.dp)
                         .clip(RoundedCornerShape(16.dp))
@@ -319,14 +316,8 @@ fun LiveInfoPage(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            if (isRound) {
-                                with(transformationSpec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                         .fillMaxWidth()
                 )
             }
@@ -337,14 +328,8 @@ fun LiveInfoPage(
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            if (isRound) {
-                                with(transformationSpec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                         .fillMaxWidth()
                 ) {
                     item {
@@ -387,14 +372,8 @@ fun LiveInfoPage(
                 Spacer(modifier = Modifier.height(8.dp))
                 Column(
                     modifier = Modifier
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            if (isRound) {
-                                with(transformationSpec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                         .fillMaxWidth()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -451,14 +430,8 @@ fun LiveInfoPage(
                         maxLines = if (isDescExpanded) Int.MAX_VALUE else 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
-                            .transformedHeight(this, transformationSpec)
-                            .graphicsLayer {
-                                if (isRound) {
-                                    with(transformationSpec) {
-                                        applyContainerTransformation(scrollProgress)
-                                    }
-                                }
-                            }
+                            .adaptiveTransformedHeight(this, transformationSpec)
+                            .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                             .fillMaxWidth()
                             .clickable { isDescExpanded = !isDescExpanded }
                     )
@@ -471,14 +444,8 @@ fun LiveInfoPage(
                 Button(
                     onClick = onPlayClick,
                     modifier = Modifier
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            if (isRound) {
-                                with(transformationSpec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                         .fillMaxWidth(),
                     icon = { Icon(imageVector = Icons.Filled.PlayCircleOutline, contentDescription = null) },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
@@ -493,7 +460,7 @@ fun LiveInfoPage(
 
 @Composable
 fun LiveDanmakuPage(
-    danmakuList: List<com.qx.orbit.bili.presentation.viewmodel.DanmakuMessage>,
+    danmakuList: List<DanmakuMessage>,
     danmakuCount: Int,
     focusRequester: FocusRequester,
     onSendDanmaku: () -> Unit
@@ -501,7 +468,7 @@ fun LiveDanmakuPage(
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
     val behavior = rememberSafeRotaryScrollableBehavior(listState)
-    val isRound = LocalConfiguration.current.isScreenRound
+    val isRound = LocalScreenRound.current
 
     ScreenScaffold(scrollState = listState, modifier = Modifier.focusRequester(focusRequester)) { contentPadding ->
         TransformingLazyColumn(
@@ -523,12 +490,8 @@ fun LiveDanmakuPage(
             item {
                 Box(
                     modifier = Modifier
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            if (isRound) {
-                                with(transformationSpec) { applyContainerTransformation(scrollProgress) }
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
@@ -551,12 +514,8 @@ fun LiveDanmakuPage(
                     msg = msg,
                     textColor = textColor,
                     modifier = Modifier
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            if (isRound) {
-                                with(transformationSpec) { applyContainerTransformation(scrollProgress) }
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp, vertical = 1.dp)
                 )
@@ -566,12 +525,8 @@ fun LiveDanmakuPage(
                 item {
                     Box(
                         modifier = Modifier
-                            .transformedHeight(this, transformationSpec)
-                            .graphicsLayer {
-                                if (isRound) {
-                                    with(transformationSpec) { applyContainerTransformation(scrollProgress) }
-                                }
-                            }
+                            .adaptiveTransformedHeight(this, transformationSpec)
+                            .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                             .fillMaxWidth()
                             .padding(vertical = 16.dp)
                     ) {
@@ -648,7 +603,7 @@ private fun buildDanmakuAnnotatedText(text: String, emotes: Map<String, EmoteInl
 
 @Composable
 private fun DanmakuMessageText(
-    msg: com.qx.orbit.bili.presentation.viewmodel.DanmakuMessage,
+    msg: DanmakuMessage,
     textColor: Color,
     modifier: Modifier = Modifier
 ) {
@@ -715,6 +670,7 @@ fun LiveRecommendPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     val context = LocalContext.current
 
     ScreenScaffold(scrollState = listState, modifier = Modifier.focusRequester(focusRequester)) { contentPadding ->
@@ -739,11 +695,11 @@ fun LiveRecommendPage(
                 val liveRoom = recommended[index]
                 LiveRoomCard(
                     item = liveRoom,
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     onClick = {
                         navController.navigate("live_room/${liveRoom.roomid}")
                     },
-                    modifier = Modifier.transformedHeight(this, transformationSpec)
+                    modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec)
                 )
             }
             item { Spacer(modifier = Modifier.height(32.dp)) }

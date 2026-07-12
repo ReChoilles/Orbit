@@ -53,9 +53,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.platform.LocalView
 import android.view.inputmethod.InputMethodManager
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.presentation.ui.components.ImagePickerScreen
 import kotlin.math.max
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
 
 const val IMAGE_CHAR = '\uE000'
 const val IMAGE_TEXT = "[图片]"
@@ -111,6 +115,7 @@ fun WriteReplyScreen(
         val pagerState = rememberPagerState(pageCount = { emotes?.size ?: 0 })
         val focusRequester = remember { FocusRequester() }
         val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
         // 捕获 Dialog 自己的 View
         val currentDialogView = LocalView.current
         SideEffect { dialogView = currentDialogView }
@@ -162,8 +167,8 @@ fun WriteReplyScreen(
                 , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
                     item {
                         ListHeader(
-                            modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-                            transformation = SurfaceTransformation(transformationSpec)
+                            modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                         ) {
                             Text(if (isDynamic) "发布动态" else if (targetName.isNullOrEmpty()) "发布评论" else "回复 @$targetName", color = MaterialTheme.colorScheme.primary)
                         }
@@ -556,12 +561,12 @@ fun ReplyInputLayout(
 fun parseRichTextForInput(
     text: String,
     emotes: Map<String, EmoteApi.Emote>
-): androidx.compose.ui.text.AnnotatedString {
+): AnnotatedString {
     val urlPattern = "(https?://[^\\s<>()\\[\\]\"',;!?]+|www\\.[^\\s<>()\\[\\]\"',;!?]+)"
     val videoPattern = "(?i)(bv[A-Za-z0-9]+|av\\d+)"
     val fullPattern = Regex("($urlPattern|$videoPattern)")
     
-    return androidx.compose.ui.text.buildAnnotatedString {
+    return buildAnnotatedString {
         if (emotes.isEmpty() && !text.contains(fullPattern)) {
             append(text)
             return@buildAnnotatedString

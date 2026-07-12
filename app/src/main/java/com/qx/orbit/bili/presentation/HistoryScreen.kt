@@ -25,10 +25,8 @@ import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
 import com.qx.orbit.bili.presentation.ui.components.WysTimeText
@@ -40,6 +38,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.Text
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
 
 @Composable
 fun HistoryScreen(
@@ -51,6 +52,7 @@ fun HistoryScreen(
 
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
 
     ScreenScaffold(
         timeText = { WysTimeText() },
@@ -65,7 +67,7 @@ fun HistoryScreen(
         ) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec)
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                 ) {
                     Text("历史记录", color = MaterialTheme.colorScheme.primary)
                 }
@@ -76,7 +78,7 @@ fun HistoryScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .transformedHeight(this, transformationSpec),
+                            .adaptiveTransformedHeight(this, transformationSpec),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Image(
@@ -103,7 +105,7 @@ fun HistoryScreen(
                 SwipeToReveal(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                         .animateItem(),
                     primaryAction = {
                         PrimaryActionButton(
@@ -117,7 +119,7 @@ fun HistoryScreen(
                 ) {
                     RecommendVideoCard(
                         item = item,
-                        transformation = SurfaceTransformation(transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         onClick = {
                             when (item.type) {
                                 "bangumi" -> {
@@ -147,7 +149,7 @@ fun HistoryScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 16.dp)
-                            .transformedHeight(this, transformationSpec),
+                            .adaptiveTransformedHeight(this, transformationSpec),
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator()
@@ -159,7 +161,7 @@ fun HistoryScreen(
                 Spacer(
                     modifier = Modifier
                         .height(32.dp)
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 )
             }
         }

@@ -46,6 +46,8 @@ import com.qx.orbit.bili.data.model.VideoCard
 import com.qx.orbit.bili.presentation.theme.BiliPink
 import com.qx.orbit.bili.presentation.util.parseRichText
 import com.qx.orbit.bili.util.formatCount
+import androidx.compose.ui.unit.TextUnit
+import androidx.wear.compose.material3.Icon
 
 @Composable
 fun DynamicCard(
@@ -119,7 +121,7 @@ fun DynamicCard(
                     color = Color.White,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified),
+                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = TextUnit.Unspecified),
                     modifier = Modifier.pointerInput(Unit) {
                         detectTapGestures { offset ->
                             val pos = textLayoutResult.value?.getOffsetForPosition(offset) ?: -1
@@ -214,7 +216,7 @@ fun DynamicCard(
                             color = Color.LightGray,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified),
+                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = TextUnit.Unspecified),
                             modifier = Modifier.pointerInput(Unit) {
                                 detectTapGestures { offset ->
                                     val pos = textLayoutResult.value?.getOffsetForPosition(offset) ?: -1
@@ -278,7 +280,7 @@ fun DynamicCard(
                 // Like
                 val likeColor = if (item.stats?.liked == true) BiliPink else MaterialTheme.colorScheme.onSurfaceVariant
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    androidx.wear.compose.material3.Icon(
+                    Icon(
                         painter = painterResource(R.drawable.icon_like_0),
                         contentDescription = "Like",
                         modifier = Modifier.size(12.dp),
@@ -294,7 +296,7 @@ fun DynamicCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 // Share
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    androidx.wear.compose.material3.Icon(
+                    Icon(
                         imageVector = Icons.Filled.Share,
                         contentDescription = "Share",
                         modifier = Modifier.size(12.dp),
@@ -310,7 +312,7 @@ fun DynamicCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 // Reply
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    androidx.wear.compose.material3.Icon(
+                    Icon(
                         imageVector = Icons.Filled.Edit,
                         contentDescription = "Reply",
                         modifier = Modifier.size(12.dp),

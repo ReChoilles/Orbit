@@ -24,7 +24,6 @@ import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.*
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.google.gson.Gson
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.PlayerData
@@ -36,6 +35,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import java.net.URLEncoder
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
 
 @Composable
 fun DownloadManagerScreen(navController: NavController) {
@@ -68,7 +70,7 @@ fun DownloadManagerScreen(navController: NavController) {
 
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    val isRound = LocalConfiguration.current.isScreenRound
+    val isRound = LocalScreenRound.current
 
     ScreenScaffold(
         scrollState = listState
@@ -82,7 +84,7 @@ fun DownloadManagerScreen(navController: NavController) {
                     ListHeader(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .transformedHeight(this, transformationSpec),
+                            .adaptiveTransformedHeight(this, transformationSpec),
                         transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                     ) {
                         Text(
@@ -99,14 +101,8 @@ fun DownloadManagerScreen(navController: NavController) {
                         Text(
                             "当前任务",
                             modifier = Modifier
-                                .graphicsLayer {
-                                    if (isRound) {
-                                        with(transformationSpec) {
-                                            applyContainerTransformation(scrollProgress)
-                                        }
-                                    }
-                                }
-                                .transformedHeight(this, transformationSpec),
+                                .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
+                                .adaptiveTransformedHeight(this, transformationSpec),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -136,7 +132,7 @@ fun DownloadManagerScreen(navController: NavController) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .animateItem()
-                                .transformedHeight(this, transformationSpec),
+                                .adaptiveTransformedHeight(this, transformationSpec),
                             primaryAction = {
                                 PrimaryActionButton(
                                     onClick = { downloadToDelete = download.id },
@@ -190,14 +186,8 @@ fun DownloadManagerScreen(navController: NavController) {
                         Text(
                             "已缓存",
                             modifier = Modifier
-                                .graphicsLayer {
-                                    if (isRound) {
-                                        with(transformationSpec) {
-                                            applyContainerTransformation(scrollProgress)
-                                        }
-                                    }
-                                }
-                                .transformedHeight(this, transformationSpec),
+                                .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
+                                .adaptiveTransformedHeight(this, transformationSpec),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -215,7 +205,7 @@ fun DownloadManagerScreen(navController: NavController) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .animateItem()
-                                .transformedHeight(this, transformationSpec),
+                                .adaptiveTransformedHeight(this, transformationSpec),
                             primaryAction = {
                                 PrimaryActionButton(
                                     onClick = { downloadToDelete = download.id },

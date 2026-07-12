@@ -63,10 +63,8 @@ import androidx.wear.compose.material3.HorizontalPageIndicator
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
@@ -85,6 +83,10 @@ import com.qx.orbit.bili.presentation.viewmodel.BangumiDetailViewModel
 import com.qx.orbit.bili.util.SharedPreferencesUtil
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import coil.request.SuccessResult
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -153,7 +155,7 @@ fun BangumiDetailScreen(navController: NavHostController, mediaId: Long, viewMod
                 .allowHardware(false)
                 .build()
             val result = context.imageLoader.execute(request)
-            if (result is coil.request.SuccessResult) {
+            if (result is SuccessResult) {
                 val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
                 if (bitmap != null) {
                     val seedColor = extractSeedColorFromBitmap(bitmap)
@@ -314,7 +316,7 @@ fun BangumiInfoPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    val isRound = LocalConfiguration.current.isScreenRound
+    val isRound = LocalScreenRound.current
     var isDescExpanded by remember { mutableStateOf(false) }
     
     val info = bangumi?.info
@@ -388,12 +390,8 @@ fun BangumiInfoPage(
                         contentDescription = "Cover",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .transformedHeight(this, transformationSpec)
-                            .graphicsLayer {
-                                if (isRound) {
-                                    with(transformationSpec) { applyContainerTransformation(scrollProgress) }
-                                }
-                            }
+                            .adaptiveTransformedHeight(this, transformationSpec)
+                            .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                             .fillMaxWidth(0.5f)
                             .height(140.dp)
                             .clip(RoundedCornerShape(8.dp))
@@ -409,12 +407,8 @@ fun BangumiInfoPage(
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .padding(top = 8.dp)
-                            .transformedHeight(this, transformationSpec)
-                            .graphicsLayer {
-                                if (isRound) {
-                                    with(transformationSpec) { applyContainerTransformation(scrollProgress) }
-                                }
-                            }
+                            .adaptiveTransformedHeight(this, transformationSpec)
+                            .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                             .fillMaxWidth()
                     )
                 }
@@ -427,12 +421,8 @@ fun BangumiInfoPage(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
-                            .transformedHeight(this, transformationSpec)
-                            .graphicsLayer {
-                                if (isRound) {
-                                    with(transformationSpec) { applyContainerTransformation(scrollProgress) }
-                                }
-                            }
+                            .adaptiveTransformedHeight(this, transformationSpec)
+                            .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                             .fillMaxWidth()
                             .padding(bottom = 8.dp)
                     )
@@ -452,8 +442,8 @@ fun BangumiInfoPage(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .transformedHeight(this, transformationSpec),
-                            transformation = SurfaceTransformation(transformationSpec),
+                                .adaptiveTransformedHeight(this, transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                             icon = { Icon(Icons.Default.PlayCircleOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
@@ -471,8 +461,8 @@ fun BangumiInfoPage(
                         onClick = onFollowClick,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .transformedHeight(this, transformationSpec),
-                        transformation = SurfaceTransformation(transformationSpec),
+                            .adaptiveTransformedHeight(this, transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         icon = { 
                             Icon(
                                 if (isFollowed) Icons.Default.Favorite else Icons.Default.FavoriteBorder, 
@@ -493,12 +483,8 @@ fun BangumiInfoPage(
                     item {
                         Box(
                             modifier = Modifier
-                                .transformedHeight(this, transformationSpec)
-                                .graphicsLayer {
-                                    if (isRound) {
-                                        with(transformationSpec) { applyContainerTransformation(scrollProgress) }
-                                    }
-                                }
+                                .adaptiveTransformedHeight(this, transformationSpec)
+                                .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                                 .fillMaxWidth()
                                 //.padding(horizontal = 12.dp)
                                 .clip(RoundedCornerShape(16.dp))
@@ -520,8 +506,8 @@ fun BangumiInfoPage(
                 if (bangumi.sectionList.isNotEmpty()) {
                     item {
                         ListHeader(
-                            modifier = Modifier.transformedHeight(this, transformationSpec),
-                            transformation = SurfaceTransformation(transformationSpec)
+                            modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                         ) {
                             Text("选集")
                         }
@@ -543,8 +529,8 @@ fun BangumiInfoPage(
                             onClick = { onEpisodeClick(ep, epProgress) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .transformedHeight(this, transformationSpec),
-                            transformation = SurfaceTransformation(transformationSpec),
+                                .adaptiveTransformedHeight(this, transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer, 
                                 contentColor = MaterialTheme.colorScheme.onSurface

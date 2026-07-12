@@ -19,6 +19,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import com.qx.orbit.bili.data.model.Emote
 import com.qx.orbit.bili.util.formatBiliTime
+import com.qx.orbit.bili.presentation.EmoteMapper
 
 object DynamicApi {
 
@@ -321,7 +322,7 @@ object DynamicApi {
         val flatEmotes = emotes?.flatMap { it.emotes }?.associateBy { it.name } ?: emptyMap()
         
         for (char in text) {
-            val emoteName = com.qx.orbit.bili.presentation.EmoteMapper.getNameForChar(char)
+            val emoteName = EmoteMapper.getNameForChar(char)
             if (emoteName != null) {
                 if (currentText.isNotEmpty()) {
                     contents.add(DynContentItem(raw_text = currentText, type = 1, biz_id = ""))

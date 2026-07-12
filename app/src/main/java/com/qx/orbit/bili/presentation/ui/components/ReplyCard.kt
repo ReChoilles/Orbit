@@ -71,6 +71,8 @@ import com.qx.orbit.bili.util.LinkResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.PlatformTextStyle
 
 
 @Composable
@@ -190,8 +192,8 @@ fun ReplyCard(
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                             lineHeight = 8.sp,
-                            style = androidx.compose.ui.text.TextStyle(
-                                platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                            style = TextStyle(
+                                platformStyle = PlatformTextStyle(includeFontPadding = false)
                             )
                         )
                     }
@@ -380,8 +382,8 @@ fun ReplyCard(
                                             fontSize = 8.sp, 
                                             fontWeight = FontWeight.Bold,
                                             lineHeight = 8.sp,
-                                            style = androidx.compose.ui.text.TextStyle(
-                                                platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                                            style = TextStyle(
+                                                platformStyle = PlatformTextStyle(includeFontPadding = false)
                                             )
                                         )
                                     }

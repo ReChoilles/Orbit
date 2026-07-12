@@ -74,10 +74,8 @@ import androidx.wear.compose.material3.IconButtonDefaults
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
@@ -96,6 +94,11 @@ import com.google.gson.Gson
 import com.qx.orbit.bili.presentation.ui.components.ImageViewerDialog
 import com.qx.orbit.bili.presentation.ui.components.ReplyCard
 import java.net.URLEncoder
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.material3.Text
 
 @Composable
 fun OpusDetailScreen(
@@ -208,7 +211,7 @@ fun OpusContentPage(
     val listState = rememberTransformingLazyColumnState()
     val behavior = rememberSafeRotaryScrollableBehavior(listState)
     val transformationSpec = rememberTransformationSpec()
-    val isRound = LocalConfiguration.current.isScreenRound
+    val isRound = LocalScreenRound.current
     var showImageDialog by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
     
     val likeInteractionSource = remember { MutableInteractionSource() }
@@ -249,8 +252,8 @@ fun OpusContentPage(
         if (item.title.isNotEmpty()) {
             item {
                 ListHeader(
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-                    transformation = SurfaceTransformation(transformationSpec)
+                    modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                 ) {
                     Text(
                         text = item.title,
@@ -273,14 +276,8 @@ fun OpusContentPage(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 160.dp)
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            if (isRound) {
-                                with(transformationSpec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                         .padding(vertical = 4.dp)
                         .clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop,
@@ -294,14 +291,8 @@ fun OpusContentPage(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .transformedHeight(this, transformationSpec)
-                    .graphicsLayer {
-                        if (isRound) {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
-                    }
+                    .adaptiveTransformedHeight(this, transformationSpec)
+                    .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                     .padding(vertical = 8.dp)
                     .clickable {
                         item.upInfo?.let {
@@ -332,13 +323,7 @@ fun OpusContentPage(
         if (item.topImages.isNotEmpty()) {
             item {
                 Column(
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec).graphicsLayer {
-                        if (isRound) {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
-                    }
+                    modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec).graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                 ) {
                     item.topImages.forEach { imgUrl ->
                         val fixedUrl = imgUrl.fixCoverUrl()
@@ -362,13 +347,7 @@ fun OpusContentPage(
         item.paragraphs?.forEach { paragraph ->
             item {
                 Box(
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec).graphicsLayer {
-                        if (isRound) {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
-                    }
+                    modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec).graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                 ) {
                     when (paragraph.type) {
                     OpusParagraph.TYPE_TEXT, OpusParagraph.TYPE_HEADING -> {
@@ -417,10 +396,10 @@ fun OpusContentPage(
                         }
                         
                         val textLayoutResult = remember { mutableStateOf<TextLayoutResult?>(null) }
-                        androidx.compose.material3.Text(
+                        Text(
                             text = annotatedStr,
                             inlineContent = inlineContentMap,
-                            style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface, lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified),
+                            style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface, lineHeight = TextUnit.Unspecified),
                             modifier = Modifier.padding(vertical = 4.dp).pointerInput(Unit) {
                                 detectTapGestures { offset ->
                                     val pos = textLayoutResult.value?.getOffsetForPosition(offset) ?: -1
@@ -473,13 +452,7 @@ fun OpusContentPage(
 
         item {
             ButtonGroup(
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp).transformedHeight(this, transformationSpec).graphicsLayer {
-                    if (isRound) {
-                        with(transformationSpec) {
-                            applyContainerTransformation(scrollProgress)
-                        }
-                    }
-                }
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp).adaptiveTransformedHeight(this, transformationSpec).graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
             ) {
                 FilledIconButton(
                     onClick = { viewModel.toggleLike() },
@@ -536,6 +509,7 @@ fun OpusCommentsPage(
     val replyCount by viewModel.replyCount.collectAsState()
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     val behavior = rememberSafeRotaryScrollableBehavior(listState)
 
     TransformingLazyColumn(
@@ -547,8 +521,8 @@ fun OpusCommentsPage(
     , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
         item {
             ListHeader(
-                modifier = Modifier.transformedHeight(this, transformationSpec),
-                transformation = SurfaceTransformation(transformationSpec)
+                modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
             ) {
                 Text(
                     "评论(${formatCount(replyCount)})",
@@ -559,12 +533,12 @@ fun OpusCommentsPage(
         item {
             Button(
                 onClick = onSendCommentClick,
-                modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-                transformation = SurfaceTransformation(transformationSpec),
+                modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                 icon = {Icon(imageVector = Icons.Filled.Edit, contentDescription = null)},
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                androidx.compose.material3.Text("发送评论", color = MaterialTheme.colorScheme.onPrimary)
+                Text("发送评论", color = MaterialTheme.colorScheme.onPrimary)
             }
         }
         items(count = replies.size, key = { replies[it].rpid }) { index ->
@@ -573,8 +547,8 @@ fun OpusCommentsPage(
             }
             ReplyCard(
                 reply = replies[index],
-                transformation = SurfaceTransformation(transformationSpec),
-                modifier = Modifier.animateItem().transformedHeight(this, transformationSpec),
+                transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                modifier = Modifier.animateItem().adaptiveTransformedHeight(this, transformationSpec),
                 navController = navController,
                 replyType = opus?.commentType ?: ReplyApi.REPLY_TYPE_DYNAMIC,
                 onRemove = { viewModel.removeReplyLocally(replies[index]) },

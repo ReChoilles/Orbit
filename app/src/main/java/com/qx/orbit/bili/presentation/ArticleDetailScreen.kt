@@ -54,10 +54,8 @@ import androidx.wear.compose.material3.HorizontalPageIndicator
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.data.api.ReplyApi
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
@@ -72,6 +70,9 @@ import com.qx.orbit.bili.presentation.ui.components.UserNameText
 import com.qx.orbit.bili.presentation.viewmodel.ArticleDetailViewModel
 import com.qx.orbit.bili.util.formatBiliTime
 import com.qx.orbit.bili.util.formatCount
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
 
 @Composable
 fun ArticleDetailScreen(
@@ -175,7 +176,7 @@ fun ArticleContentPage(
     val listState = rememberTransformingLazyColumnState()
     val behavior = rememberSafeRotaryScrollableBehavior(listState)
     val transformationSpec = rememberTransformationSpec()
-    val isRound = LocalConfiguration.current.isScreenRound
+    val isRound = LocalScreenRound.current
     var showImageDialog by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
     val segments = remember(item.content) { parseArticleHtml(item.content) }
     val context = LocalContext.current
@@ -203,8 +204,8 @@ fun ArticleContentPage(
         if (item.title.isNotEmpty()) {
             item {
                 ListHeader(
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-                    transformation = SurfaceTransformation(transformationSpec)
+                    modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                 ) {
                     Text(
                         text = item.title,
@@ -220,13 +221,7 @@ fun ArticleContentPage(
 
         item {
             Row(
-                modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec).graphicsLayer {
-                    if (isRound) {
-                        with(transformationSpec) {
-                            applyContainerTransformation(scrollProgress)
-                        }
-                    }
-                }.padding(vertical = 8.dp).clickable {
+                modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec).graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }.padding(vertical = 8.dp).clickable {
                     item.upInfo?.mid?.let { navController.navigate("user_space/$it") }
                 },
                 verticalAlignment = Alignment.CenterVertically,
@@ -260,13 +255,7 @@ fun ArticleContentPage(
                 SubcomposeAsyncImage(
                     model = ImageRequest.Builder(context).data(fixedUrl).crossfade(true).build(),
                     contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec).graphicsLayer {
-                        if (isRound) {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
-                    }.height(160.dp).padding(vertical = 4.dp).clickable { showImageDialog = Pair(allImages, 0) },
+                    modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec).graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }.height(160.dp).padding(vertical = 4.dp).clickable { showImageDialog = Pair(allImages, 0) },
                     contentScale = ContentScale.Crop,
                     loading = { Box(modifier = Modifier.fillMaxSize().background(Color(0xFF2A2A2A))) },
                     error = { Box(modifier = Modifier.fillMaxSize().background(Color(0xFF2A2A2A))) }
@@ -276,13 +265,7 @@ fun ArticleContentPage(
 
         items(segments.size) { idx ->
             Box(
-                modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec).graphicsLayer {
-                    if (isRound) {
-                        with(transformationSpec) {
-                            applyContainerTransformation(scrollProgress)
-                        }
-                    }
-                }
+                modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec).graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
             ) {
                 when (val seg = segments[idx]) {
                     is ArticleSegment.Image -> {
@@ -339,13 +322,7 @@ fun ArticleContentPage(
             val stats = item.stats
             if (stats != null) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec).graphicsLayer {
-                        if (isRound) {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
-                    }.padding(vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec).graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }.padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     Text("${formatCount(stats.view)}阅读", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
@@ -371,6 +348,7 @@ fun ArticleCommentsPage(
     val isReplyLoading by viewModel.isReplyLoading.collectAsState()
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     val behavior = rememberSafeRotaryScrollableBehavior(listState)
 
     TransformingLazyColumn(
@@ -380,8 +358,8 @@ fun ArticleCommentsPage(
     , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
         item {
             ListHeader(
-                modifier = Modifier.transformedHeight(this, transformationSpec),
-                transformation = SurfaceTransformation(transformationSpec)
+                modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
             ) {
                 Text(
                     "评论(${formatCount(replyCount)})",
@@ -394,8 +372,8 @@ fun ArticleCommentsPage(
         item {
             Button(
                 onClick = onSendCommentClick,
-                modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-                transformation = SurfaceTransformation(transformationSpec),
+                modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                 icon = {Icon(imageVector = Icons.Filled.Edit, contentDescription = null)},
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
@@ -408,8 +386,8 @@ fun ArticleCommentsPage(
             }
             ReplyCard(
                 reply = replies[index],
-                transformation = SurfaceTransformation(transformationSpec),
-                modifier = Modifier.animateItem().transformedHeight(this, transformationSpec),
+                transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                modifier = Modifier.animateItem().adaptiveTransformedHeight(this, transformationSpec),
                 navController = navController,
                 replyType = ReplyApi.REPLY_TYPE_ARTICLE,
                 onRemove = { viewModel.removeReplyLocally(replies[index]) },

@@ -26,7 +26,6 @@ import androidx.wear.compose.foundation.lazy.itemsIndexed
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.*
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.VideoCard
 import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
@@ -34,6 +33,9 @@ import com.qx.orbit.bili.presentation.ui.components.WysAlertDialog
 import com.qx.orbit.bili.presentation.ui.components.WysTimeText
 import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
 import com.qx.orbit.bili.presentation.viewmodel.FavoriteDetailViewModel
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
 
 @Composable
 fun FavoriteDetailScreen(
@@ -53,7 +55,7 @@ fun FavoriteDetailScreen(
     val transformationSpec = rememberTransformationSpec()
     var videoToDelete by remember { mutableStateOf<VideoCard?>(null) }
     var searchText by remember { mutableStateOf("") }
-    val isRound = androidx.compose.ui.platform.LocalConfiguration.current.isScreenRound
+    val isRound = LocalScreenRound.current
 
     ScreenScaffold(
         timeText = { WysTimeText() },
@@ -72,12 +74,8 @@ fun FavoriteDetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            if (isRound) {
-                                with(transformationSpec) { applyContainerTransformation(scrollProgress) }
-                            }
-                        },
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
@@ -168,7 +166,7 @@ fun FavoriteDetailScreen(
                     revealState = revealState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                         .animateItem(),
                     primaryAction = {
                         PrimaryActionButton(
@@ -185,7 +183,7 @@ fun FavoriteDetailScreen(
                         onClick = {
                             navController.navigate("detail/${videoCard.bvid}/${videoCard.aid}")
                         },
-                        transformation = SurfaceTransformation(transformationSpec)
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                     )
                 }
             }

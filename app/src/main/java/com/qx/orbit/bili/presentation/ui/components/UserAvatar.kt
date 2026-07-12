@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.Color
 import coil.compose.AsyncImage
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.util.fixCoverUrl
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun UserAvatar(
@@ -60,7 +62,7 @@ fun UserAvatar(
             val fixedAvatarUrl = if (baseAvatarUrl.contains("@")) baseAvatarUrl else "${baseAvatarUrl}@150w_150h_1c.webp"
             
             AsyncImage(
-                model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                model = ImageRequest.Builder(LocalContext.current)
                     .data(fixedAvatarUrl)
                     .crossfade(true)
                     .build(),

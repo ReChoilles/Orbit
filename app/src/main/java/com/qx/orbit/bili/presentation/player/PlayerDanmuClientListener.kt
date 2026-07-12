@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit
 import java.util.zip.Inflater
 
 import java.util.UUID
+import com.qx.orbit.bili.presentation.viewmodel.EmoteInline
 
 interface PlayerCallback {
     fun addDanmaku(
@@ -29,8 +30,8 @@ interface PlayerCallback {
         type: Int = 1,
         borderColor: Int = 0,
         senderName: String = "",
-        emotes: Map<String, com.qx.orbit.bili.presentation.viewmodel.EmoteInline>? = null,
-        singleEmote: com.qx.orbit.bili.presentation.viewmodel.EmoteInline? = null,
+        emotes: Map<String, EmoteInline>? = null,
+        singleEmote: EmoteInline? = null,
         id: String = ""
     )
     var onlineNumber: String
@@ -237,21 +238,21 @@ class PlayerDanmuClientListener(
                         val width = emoteObj.optInt("width", 0)
                         val height = emoteObj.optInt("height", 0)
                         if (url.isNotBlank() && width > 0 && height > 0) {
-                            com.qx.orbit.bili.presentation.viewmodel.EmoteInline(url, width, height)
+                            EmoteInline(url, width, height)
                         } else null
                     }
                 } catch (_: Exception) { null }
 
                 val emotes = try {
                     extraObj?.optJSONObject("emots")?.let { emotsObj ->
-                        val map = mutableMapOf<String, com.qx.orbit.bili.presentation.viewmodel.EmoteInline>()
+                        val map = mutableMapOf<String, EmoteInline>()
                         emotsObj.keys().forEach { key ->
                             val emote = emotsObj.optJSONObject(key) ?: return@forEach
                             val url = emote.optString("url", "").replace("http://", "https://")
                             val width = emote.optInt("width", 0)
                             val height = emote.optInt("height", 0)
                             if (url.isNotBlank() && width > 0 && height > 0) {
-                                map[key] = com.qx.orbit.bili.presentation.viewmodel.EmoteInline(url, width, height)
+                                map[key] = EmoteInline(url, width, height)
                             }
                         }
                         map.takeIf { it.isNotEmpty() }

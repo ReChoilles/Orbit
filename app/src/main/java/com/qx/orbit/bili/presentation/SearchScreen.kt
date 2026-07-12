@@ -48,7 +48,6 @@ import androidx.wear.compose.foundation.lazy.itemsIndexed
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.presentation.ui.components.UserAvatar
 import com.qx.orbit.bili.presentation.ui.components.UserNameText
 import androidx.wear.compose.material3.*
@@ -72,6 +71,10 @@ import com.qx.orbit.bili.util.SharedPreferencesUtil
 import com.qx.orbit.bili.data.api.BilibiliIDConverter
 import com.qx.orbit.bili.util.formatCount
 import kotlinx.coroutines.launch
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.ui.components.LevelIcon
 
 object SearchHistoryManager {
     private const val KEY = "search_history"
@@ -100,7 +103,7 @@ fun SearchInputScreen(navController: NavHostController) {
     val focusRequester = remember { FocusRequester() }
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    val isRound = androidx.compose.ui.platform.LocalConfiguration.current.isScreenRound
+    val isRound = LocalScreenRound.current
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -138,7 +141,7 @@ fun SearchInputScreen(navController: NavHostController) {
             }
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec)
+                    modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec)
                         .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -187,7 +190,7 @@ fun SearchInputScreen(navController: NavHostController) {
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .transformedHeight(this, transformationSpec)
+                            .adaptiveTransformedHeight(this, transformationSpec)
                             .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                     )
                 }
@@ -195,7 +198,7 @@ fun SearchInputScreen(navController: NavHostController) {
                     SwipeToReveal(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .transformedHeight(this,transformationSpec)
+                            .adaptiveTransformedHeight(this,transformationSpec)
                             .animateItem(),
 
                         primaryAction = {
@@ -219,7 +222,7 @@ fun SearchInputScreen(navController: NavHostController) {
                         Button(
                             onClick = { performSearch(history) },
                             modifier = Modifier.fillMaxWidth(),
-                            transformation = SurfaceTransformation(transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                         ) {
                             Text(text = history, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -329,6 +332,7 @@ fun SearchResultScreen(viewModel: SearchViewModel, query: String, navController:
 
             val listState = rememberTransformingLazyColumnState()
             val transformationSpec = rememberTransformationSpec()
+            val isRound = LocalScreenRound.current
             ScreenScaffold(
                 timeText = { WysTimeText() },
                 scrollState = listState,
@@ -351,7 +355,7 @@ fun SearchResultScreen(viewModel: SearchViewModel, query: String, navController:
                         }
 
                         // Reduced gap
-                        Box(modifier = Modifier.transformedHeight(this@itemsIndexed, transformationSpec)) {
+                        Box(modifier = Modifier.adaptiveTransformedHeight(this@itemsIndexed, transformationSpec)) {
                             when (item) {
                                 is VideoCard -> RecommendVideoCard(
                                     item = item, 
@@ -362,28 +366,28 @@ fun SearchResultScreen(viewModel: SearchViewModel, query: String, navController:
                                             navController.navigate("detail/${item.bvid}/${item.aid}")
                                         }
                                     },
-                                    transformation = SurfaceTransformation(transformationSpec)
+                                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                                 )
                                 is LiveRoom -> LiveRoomCard(
                                     item = item, 
                                     onClick = {
                                         navController.navigate("live_room/${item.roomid}")
                                     },
-                                    transformation = SurfaceTransformation(transformationSpec)
+                                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                                 )
                                 is UserInfo -> UserInfoCard(
                                     item = item, 
                                     onClick = {
                                         navController.navigate("user_space/${item.mid}")
                                     },
-                                    transformation = SurfaceTransformation(transformationSpec)
+                                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                                 )
                                 is ArticleCard -> ArticleCardItem(
                                     item = item, 
                                     onClick = {
                                         navController.navigate("article_detail/${item.id}")
                                     },
-                                    transformation = SurfaceTransformation(transformationSpec)
+                                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                                 )
                             }
                         }
@@ -483,6 +487,7 @@ fun SearchResultScreen(viewModel: SearchViewModel, query: String, navController:
                 val menuListState = rememberTransformingLazyColumnState()
                 val menuFocusRequester = remember { FocusRequester() }
                 val menuTransformationSpec = rememberTransformationSpec()
+                val isRound = LocalScreenRound.current
 
                 LaunchedEffect(showTabMenu) {
                     if (showTabMenu) {
@@ -509,12 +514,8 @@ fun SearchResultScreen(viewModel: SearchViewModel, query: String, navController:
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .transformedHeight(this, menuTransformationSpec)
-                                    .graphicsLayer {
-                                        with(menuTransformationSpec) {
-                                            applyContainerTransformation(scrollProgress)
-                                        }
-                                    }
+                                    .adaptiveTransformedHeight(this, menuTransformationSpec)
+                                    .graphicsLayer { if (isRound) { with(menuTransformationSpec) { applyContainerTransformation(scrollProgress) } } }
                             ) {
                                 var innerSearch by remember(query) { mutableStateOf(query) }
                                 val doInnerSearch = {
@@ -573,12 +574,8 @@ fun SearchResultScreen(viewModel: SearchViewModel, query: String, navController:
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .transformedHeight(this, menuTransformationSpec)
-                                    .graphicsLayer {
-                                        with(menuTransformationSpec) {
-                                            applyContainerTransformation(scrollProgress)
-                                        }
-                                    }
+                                    .adaptiveTransformedHeight(this, menuTransformationSpec)
+                                    .graphicsLayer { if (isRound) { with(menuTransformationSpec) { applyContainerTransformation(scrollProgress) } } }
                             ) {
                                 val isSelected = currentTab == tab
                                 Row(
@@ -667,7 +664,7 @@ fun UserInfoCard(
                     overflow = TextOverflow.Clip
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                com.qx.orbit.bili.presentation.ui.components.LevelIcon(
+                LevelIcon(
                     level = item.level,
                     isSenior = item.is_senior_member == 1
                 )

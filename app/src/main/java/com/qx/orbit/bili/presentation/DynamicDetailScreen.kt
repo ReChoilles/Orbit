@@ -34,7 +34,6 @@ import androidx.wear.compose.material3.*
 import com.qx.orbit.bili.presentation.ui.components.UserAvatar
 import com.qx.orbit.bili.presentation.ui.components.UserNameText
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.qx.orbit.bili.data.api.ReplyApi
@@ -50,6 +49,11 @@ import com.qx.orbit.bili.presentation.ui.components.ImageViewerDialog
 import com.qx.orbit.bili.presentation.ui.components.ReplyCard
 import com.qx.orbit.bili.presentation.util.parseRichText
 import com.qx.orbit.bili.util.fixCoverUrl
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.ui.components.RoundToast
+import com.qx.orbit.bili.data.model.Reply
 
 @Composable
 fun DynamicDetailScreen(
@@ -66,6 +70,7 @@ fun DynamicDetailScreen(
 
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     val behavior = rememberSafeRotaryScrollableBehavior(listState)
     val focusRequester = remember { FocusRequester() }
     
@@ -75,7 +80,7 @@ fun DynamicDetailScreen(
     val context = LocalContext.current
     var showImageDialog by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
     var showWriteReply by remember { mutableStateOf(false) }
-    var replyTarget by remember { mutableStateOf<com.qx.orbit.bili.data.model.Reply?>(null) }
+    var replyTarget by remember { mutableStateOf<Reply?>(null) }
 
     LaunchedEffect(dynamicId) {
         viewModel.loadDynamic(dynamicId)
@@ -115,16 +120,16 @@ fun DynamicDetailScreen(
                 , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
                     item {
                         ListHeader(
-                            modifier = Modifier.transformedHeight(this, transformationSpec),
-                            transformation = SurfaceTransformation(transformationSpec)
+                            modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                         ) { Text("动态详情", color = MaterialTheme.colorScheme.primary) }
                     }
                     
                     item {
                         Card(
                             onClick = {},
-                            modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-                            transformation = SurfaceTransformation(transformationSpec),
+                            modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
@@ -287,7 +292,7 @@ fun DynamicDetailScreen(
                                                 color = Color.LightGray,
                                                 maxLines = 3,
                                                 overflow = TextOverflow.Ellipsis,
-                                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified)
+                                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = TextUnit.Unspecified)
                                             )
                                         }
                                         if (forward.major_type == "MAJOR_TYPE_ARCHIVE" && forward.cover.isNotEmpty()) {
@@ -415,8 +420,8 @@ fun DynamicDetailScreen(
                             }
                             ReplyCard(
                                 reply = replies[index],
-                                transformation = SurfaceTransformation(transformationSpec),
-                                modifier = Modifier.animateItem().transformedHeight(this, transformationSpec),
+                                transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                                modifier = Modifier.animateItem().adaptiveTransformedHeight(this, transformationSpec),
                                 navController = navController,
                                 replyType = ReplyApi.REPLY_TYPE_DYNAMIC,
                                 onRemove = { viewModel.removeReplyLocally(replies[index]) },
@@ -464,7 +469,7 @@ fun DynamicDetailScreen(
                 onError = { error ->
                     showWriteReply = false
                     replyTarget = null
-                    com.qx.orbit.bili.presentation.ui.components.RoundToast.show(context, error)
+                    RoundToast.show(context, error)
                 }
             )
         },

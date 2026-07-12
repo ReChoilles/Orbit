@@ -1,7 +1,16 @@
+@file:Suppress("unused")
+
 package com.qx.orbit.bili.presentation.settings
 
 import android.Manifest
-import androidx.compose.foundation.background
+import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,28 +20,33 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.qx.orbit.bili.presentation.ui.components.WysAlertDialog
 import androidx.navigation.NavController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
-import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
@@ -41,46 +55,37 @@ import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.TitleCard
-import com.qx.orbit.bili.presentation.ui.components.WysTimeText
+import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.SwitchButton
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.TitleCard
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
-import androidx.compose.ui.graphics.graphicsLayer
-import com.qx.orbit.bili.data.remote.CookieManager
-import com.qx.orbit.bili.util.SharedPreferencesUtil
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import com.qx.orbit.bili.presentation.ui.components.RoundToast
-import androidx.compose.ui.platform.LocalContext
 import com.google.gson.Gson
-import android.content.Intent
-import android.os.Build
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.basicMarquee
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.wear.compose.material3.SurfaceTransformation
-import com.qx.orbit.bili.presentation.MainActivity
-import com.qx.orbit.bili.util.ShizukuUtils
-import com.qx.orbit.bili.presentation.ui.components.ShizukuPermissionDialog
-import com.qx.orbit.bili.presentation.ui.components.ShizukuNotInstalledDialog
-import com.qx.orbit.bili.presentation.ui.components.ShizukuActivationDialog
-import rikka.shizuku.Shizuku
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import com.qx.orbit.bili.R
-import androidx.compose.ui.platform.LocalLocale
+import com.qx.orbit.bili.data.remote.CookieManager
+import com.qx.orbit.bili.presentation.MainActivity
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.ui.components.RoundToast
+import com.qx.orbit.bili.presentation.ui.components.ShizukuActivationDialog
+import com.qx.orbit.bili.presentation.ui.components.ShizukuNotInstalledDialog
+import com.qx.orbit.bili.presentation.ui.components.ShizukuPermissionDialog
+import com.qx.orbit.bili.presentation.ui.components.WysAlertDialog
+import com.qx.orbit.bili.presentation.ui.components.WysTimeText
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
+import com.qx.orbit.bili.util.AppConfig
+import com.qx.orbit.bili.util.ScreenMode
+import com.qx.orbit.bili.util.SharedPreferencesUtil
+import com.qx.orbit.bili.util.ShizukuUtils
+import kotlinx.coroutines.launch
+import rikka.shizuku.Shizuku
+import com.qx.orbit.bili.data.api.CookieRefreshApi
 
 @Composable
 fun SettingsScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    val context = LocalContext.current
+    val isRound = LocalScreenRound.current
     val isLoggedIn = remember { CookieManager.getCookie().isNotEmpty() }
 
     ScreenScaffold(
@@ -97,8 +102,8 @@ fun SettingsScreen(navController: NavController) {
                 ListHeader(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
-                    transformation = SurfaceTransformation(transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                 ) {
                     Text(text = "设置", color = MaterialTheme.colorScheme.primary)
                 }
@@ -114,8 +119,8 @@ fun SettingsScreen(navController: NavController) {
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .transformedHeight(this, transformationSpec),
-                        transformation = SurfaceTransformation(transformationSpec)
+                            .adaptiveTransformedHeight(this, transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                     ) {
                         Text(text = "登录状态管理", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
@@ -129,10 +134,10 @@ fun SettingsScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "选择播放器", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -145,10 +150,10 @@ fun SettingsScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "Apsis Player 设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -161,10 +166,10 @@ fun SettingsScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "界面设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -177,10 +182,10 @@ fun SettingsScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "偏好设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -193,10 +198,10 @@ fun SettingsScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "关于软件", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -210,7 +215,7 @@ fun SettingsScreen(navController: NavController) {
 fun SettingPreferenceScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    val context = LocalContext.current
+    val isRound = LocalScreenRound.current
 
     ScreenScaffold(
         scrollState = listState
@@ -223,10 +228,10 @@ fun SettingPreferenceScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "偏好设置", color = MaterialTheme.colorScheme.primary)
                 }
@@ -250,10 +255,10 @@ fun SettingPreferenceScreen(navController: NavController) {
                             overflow = TextOverflow.Ellipsis
                         )
                     },
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 )
             }
             item {
@@ -274,10 +279,10 @@ fun SettingPreferenceScreen(navController: NavController) {
                             overflow = TextOverflow.Ellipsis
                         )
                     },
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 )
             }
 
@@ -291,12 +296,8 @@ fun SettingPreferenceScreen(navController: NavController) {
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                 ) {
                     Text(text = "缓存位置管理", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -310,7 +311,7 @@ fun SettingPreferenceScreen(navController: NavController) {
 fun SettingApsisPlayerScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    var currentDanmakuEngine by remember { mutableStateOf(SharedPreferencesUtil.getString("danmaku_engine", "dfm")) }
+    val isRound = LocalScreenRound.current
 
     ScreenScaffold(
         timeText = { WysTimeText() },
@@ -324,10 +325,10 @@ fun SettingApsisPlayerScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "Apsis Player 设置", color = MaterialTheme.colorScheme.primary)
                 }
@@ -337,12 +338,8 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .graphicsLayer {
-                                with(transformationSpec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                        }
-                        .transformedHeight(this, transformationSpec),
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
+                        .adaptiveTransformedHeight(this, transformationSpec),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -358,12 +355,8 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .graphicsLayer {
-                                with(transformationSpec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                        }
-                        .transformedHeight(this, transformationSpec),
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
+                        .adaptiveTransformedHeight(this, transformationSpec),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -371,7 +364,7 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                     Text(text = stringResource(R.string.app_version), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
                 }
             }
-            item { Spacer(modifier = Modifier.height(8.dp).transformedHeight(this, transformationSpec)) }
+            item { Spacer(modifier = Modifier.height(8.dp).adaptiveTransformedHeight(this, transformationSpec)) }
 
             // Using SharedPreferencesUtil to track states with correct default values based on BiliClient
             val settings = listOf(
@@ -398,10 +391,10 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "播放器界面自定义", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -417,12 +410,8 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                 ) {
                     Text(text = "视频渲染方式设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -435,10 +424,10 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "弹幕引擎设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -460,10 +449,10 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                         label = {
                             Text(text = label, maxLines = 1, modifier = Modifier.basicMarquee())
                         },
-                        transformation = SurfaceTransformation(transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .transformedHeight(this, transformationSpec)
+                            .adaptiveTransformedHeight(this, transformationSpec)
                     )
                 }
             }
@@ -487,12 +476,8 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                 ) {
                     val label = if (maxLines == 0) "不限" else "${maxLines}行"
                     Text(text = "弹幕密度: $label", maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -504,7 +489,7 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                 }
                 TitleCard(
                     onClick = {},
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     title = {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Row(
@@ -540,7 +525,7 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 )
             }
             item { Spacer(Modifier.height(20.dp)) }
@@ -552,6 +537,7 @@ fun SettingApsisPlayerScreen(navController: NavController) {
 fun SettingUIScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
 
     ScreenScaffold(
         scrollState = listState,
@@ -565,10 +551,10 @@ fun SettingUIScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "界面设置", color = MaterialTheme.colorScheme.primary)
                 }
@@ -585,16 +571,52 @@ fun SettingUIScreen(navController: NavController) {
                     label = {
                         Text(text = "沉浸式时间显示", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     },
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 )
             }
+            item {
+                val context = LocalContext.current
+                Button(
+                    onClick = {
+                        val nextMode = when (AppConfig.screenMode) {
+                            ScreenMode.AUTO -> ScreenMode.ROUND
+                            ScreenMode.ROUND -> ScreenMode.SQUARE
+                            ScreenMode.SQUARE -> ScreenMode.AUTO
+                        }
+                        AppConfig.saveScreenMode(context, nextMode)
+                    },
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                ){
+                    Column {
+                        Text("屏幕形状模式", style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            text = when (AppConfig.screenMode) {
+                                ScreenMode.AUTO -> "自动检测"
+                                ScreenMode.ROUND -> "强制圆屏"
+                                ScreenMode.SQUARE -> "强制方屏"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(24.dp)) }
         }
     }
 }
 
+@SuppressLint("WearRecents")
 @Composable
 fun SettingLoginStatusScreen(navController: NavController) {
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -602,6 +624,7 @@ fun SettingLoginStatusScreen(navController: NavController) {
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     val context = LocalContext.current
 
     ScreenScaffold(
@@ -616,10 +639,10 @@ fun SettingLoginStatusScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "登录状态管理", color = MaterialTheme.colorScheme.primary)
                 }
@@ -646,10 +669,10 @@ fun SettingLoginStatusScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "导出 Cookie", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -662,7 +685,7 @@ fun SettingLoginStatusScreen(navController: NavController) {
                         isRefreshing = true
                         RoundToast.show(context, "正在刷新 Cookie...")
                         coroutineScope.launch {
-                            val result = com.qx.orbit.bili.data.api.CookieRefreshApi.doCookieRefresh(auto = false)
+                            val result = CookieRefreshApi.doCookieRefresh(auto = false)
                             RoundToast.show(context, result.message)
                             isRefreshing = false
                         }
@@ -671,10 +694,10 @@ fun SettingLoginStatusScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     if (isRefreshing) {
                         CircularProgressIndicator(
@@ -695,10 +718,10 @@ fun SettingLoginStatusScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
                     ),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "退出登录", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -711,12 +734,8 @@ fun SettingLoginStatusScreen(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp, vertical = 8.dp)
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                 )
             }
             item { Spacer(Modifier.height(12.dp)) }
@@ -753,6 +772,7 @@ private data class CookieExportItem(
 fun SettingVideoRenderScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     var useTextureView by remember { mutableStateOf(SharedPreferencesUtil.getBoolean("player_texture_view", true)) }
 
     ScreenScaffold(
@@ -767,10 +787,10 @@ fun SettingVideoRenderScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "视频渲染", color = MaterialTheme.colorScheme.primary)
                 }
@@ -782,7 +802,7 @@ fun SettingVideoRenderScreen(navController: NavController) {
                         useTextureView = false
                         SharedPreferencesUtil.putBoolean("player_texture_view", false)
                     },
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (!useTextureView) {
@@ -799,7 +819,7 @@ fun SettingVideoRenderScreen(navController: NavController) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
+                        .adaptiveTransformedHeight(this, transformationSpec),
                     colors = if (!useTextureView) {
                         CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
                     } else CardDefaults.cardColors()
@@ -817,7 +837,7 @@ fun SettingVideoRenderScreen(navController: NavController) {
                         useTextureView = true
                         SharedPreferencesUtil.putBoolean("player_texture_view", true)
                     },
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (useTextureView) {
@@ -834,7 +854,7 @@ fun SettingVideoRenderScreen(navController: NavController) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
+                        .adaptiveTransformedHeight(this, transformationSpec),
                     colors = if (useTextureView) {
                         CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
                     } else CardDefaults.cardColors()
@@ -854,12 +874,8 @@ fun SettingVideoRenderScreen(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .transformedHeight(this, transformationSpec)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                 )
             }
         }
@@ -870,6 +886,7 @@ fun SettingVideoRenderScreen(navController: NavController) {
 fun SettingDanmakuEngineScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     var currentDanmakuEngine by remember { mutableStateOf(SharedPreferencesUtil.getString("danmaku_engine", "dfm")) }
 
     ScreenScaffold(
@@ -884,19 +901,19 @@ fun SettingDanmakuEngineScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "弹幕引擎", color = MaterialTheme.colorScheme.primary)
                 }
             }
 
-            val engineOptions = listOf("dfm" to "DanmakuFlameMaster（推荐）", "dfmnext" to "DFMNext")
+            val engineOptions = listOf("dfm" to "烈焰弹幕使", "dfmnext" to "DFM-Next(实验性)")
             val engineDescriptions = mapOf(
                 "dfm" to "由B站官方出品，稳定的老牌弹幕引擎",
-                "dfmnext" to "基于DanmakuFlameMaster的Kotlin重构版"
+                "dfmnext" to "基于DanmakuFlameMaster，使用Kotlin完全重构"
             )
 
             engineOptions.forEach { (value, label) ->
@@ -906,7 +923,7 @@ fun SettingDanmakuEngineScreen(navController: NavController) {
                             currentDanmakuEngine = value
                             SharedPreferencesUtil.putString("danmaku_engine", value)
                         },
-                        transformation = SurfaceTransformation(transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         title = {
                             Column {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -931,7 +948,7 @@ fun SettingDanmakuEngineScreen(navController: NavController) {
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .transformedHeight(this, transformationSpec),
+                            .adaptiveTransformedHeight(this, transformationSpec),
                         colors = if (currentDanmakuEngine == value) {
                             CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
                         } else CardDefaults.cardColors()
@@ -947,6 +964,7 @@ fun SettingDanmakuEngineScreen(navController: NavController) {
 fun SettingCacheLocationScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     var cacheLocation by remember { mutableStateOf(SharedPreferencesUtil.getString("cache_location", "internal")) }
     val context = LocalContext.current
     
@@ -1025,10 +1043,10 @@ fun SettingCacheLocationScreen(navController: NavController) {
         ) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "视频缓存位置", color = MaterialTheme.colorScheme.primary)
                 }
@@ -1040,7 +1058,7 @@ fun SettingCacheLocationScreen(navController: NavController) {
                         cacheLocation = "internal"
                         SharedPreferencesUtil.putString("cache_location", "internal")
                     },
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (cacheLocation == "internal") {
@@ -1057,7 +1075,7 @@ fun SettingCacheLocationScreen(navController: NavController) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
+                        .adaptiveTransformedHeight(this, transformationSpec),
                     colors = if (cacheLocation == "internal") {
                         CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
                     } else CardDefaults.cardColors()
@@ -1092,7 +1110,7 @@ fun SettingCacheLocationScreen(navController: NavController) {
                             }
                         }
                     },
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (cacheLocation == "external") {
@@ -1109,7 +1127,7 @@ fun SettingCacheLocationScreen(navController: NavController) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
+                        .adaptiveTransformedHeight(this, transformationSpec),
                     colors = if (cacheLocation == "external") {
                         CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
                     } else CardDefaults.cardColors()
@@ -1147,10 +1165,10 @@ fun SettingCacheLocationScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     )},
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1174,6 +1192,7 @@ fun SettingCacheLocationScreen(navController: NavController) {
 fun SettingPlayerChooseScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     var currentPlayer by remember { mutableStateOf(SharedPreferencesUtil.getString("player", "apsisPlayer")) }
 
     ScreenScaffold(
@@ -1188,10 +1207,10 @@ fun SettingPlayerChooseScreen(navController: NavController) {
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "默认播放器", color = MaterialTheme.colorScheme.primary)
                 }
@@ -1203,7 +1222,7 @@ fun SettingPlayerChooseScreen(navController: NavController) {
                         currentPlayer = "apsisPlayer"
                         SharedPreferencesUtil.putString("player", "apsisPlayer")
                     },
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (currentPlayer == "apsisPlayer") {
@@ -1220,7 +1239,7 @@ fun SettingPlayerChooseScreen(navController: NavController) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
+                        .adaptiveTransformedHeight(this, transformationSpec),
                     colors = if (currentPlayer == "apsisPlayer") {
                         CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
                     } else CardDefaults.cardColors()
@@ -1238,7 +1257,7 @@ fun SettingPlayerChooseScreen(navController: NavController) {
                         currentPlayer = "aliangPlayer"
                         SharedPreferencesUtil.putString("player", "aliangPlayer")
                     },
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (currentPlayer == "aliangPlayer") {
@@ -1255,7 +1274,7 @@ fun SettingPlayerChooseScreen(navController: NavController) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
+                        .adaptiveTransformedHeight(this, transformationSpec),
                     colors = if (currentPlayer == "aliangPlayer") {
                         CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
                     } else CardDefaults.cardColors()
@@ -1283,10 +1302,10 @@ fun SettingPlayerChooseScreen(navController: NavController) {
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "视频清晰度: $label", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -1300,6 +1319,7 @@ fun SettingPlayerChooseScreen(navController: NavController) {
 fun SettingVideoQualityScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     var currentQn by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("play_qn", 16)) }
     val isLoggedIn = CookieManager.getCookie().contains("SESSDATA")
     val context = LocalContext.current
@@ -1324,10 +1344,10 @@ fun SettingVideoQualityScreen(navController: NavController) {
         ) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 ) {
                     Text(text = "视频清晰度", color = MaterialTheme.colorScheme.primary)
                 }
@@ -1347,10 +1367,10 @@ fun SettingVideoQualityScreen(navController: NavController) {
                                 SharedPreferencesUtil.putInt("play_qn", qn)
                             }
                         },
-                        transformation = SurfaceTransformation(transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .transformedHeight(this, transformationSpec),
+                            .adaptiveTransformedHeight(this, transformationSpec),
                         colors = if (currentQn == qn) {
                             ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
                         } else {

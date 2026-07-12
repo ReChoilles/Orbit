@@ -64,10 +64,8 @@ import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.compose.material.icons.filled.Edit
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import coil.compose.AsyncImage
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.presentation.theme.BiliPink
@@ -75,6 +73,10 @@ import com.qx.orbit.bili.presentation.ui.components.DynamicCard
 import com.qx.orbit.bili.presentation.ui.components.UserAvatar
 import com.qx.orbit.bili.presentation.viewmodel.DynamicFeedViewModel
 import kotlin.math.roundToInt
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.compose.runtime.mutableStateOf
 
 @Composable
 fun DynamicFeedScreen(
@@ -88,12 +90,13 @@ fun DynamicFeedScreen(
     val dynamicList by viewModel.dynamicList.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
-    var showWriteDynamic by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showWriteDynamic by remember { mutableStateOf(false) }
     val emotes by viewModel.emotes.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val selectedMid by viewModel.selectedMid.collectAsState()
     val listState = rememberTransformingLazyColumnState()
     val spec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
 
     LaunchedEffect(Unit) {
         try { focusRequester.requestFocus() } catch (_: Exception) {}
@@ -137,8 +140,8 @@ fun DynamicFeedScreen(
                 item {
                     Button(
                         onClick = { showWriteDynamic = true },
-                        modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
-                        transformation = SurfaceTransformation(spec),
+                        modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, spec),
+                        transformation = if (isRound) SurfaceTransformation(spec) else null,
                         icon = { Icon(imageVector = Icons.Filled.Edit, contentDescription = null) },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
@@ -150,12 +153,8 @@ fun DynamicFeedScreen(
                     item {
                         LazyRow(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                                .transformedHeight(this, spec)
-                                .graphicsLayer {
-                                    with(spec) {
-                                        applyContainerTransformation(scrollProgress)
-                                    }
-                                },
+                                .adaptiveTransformedHeight(this, spec)
+                                .graphicsLayer { if (isRound) { with(spec) { applyContainerTransformation(scrollProgress) } } },
                             contentPadding = PaddingValues(horizontal = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -214,12 +213,8 @@ fun DynamicFeedScreen(
                 item {
                     LazyRow(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                            .transformedHeight(this, spec)
-                            .graphicsLayer {
-                                with(spec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                            },
+                            .adaptiveTransformedHeight(this, spec)
+                            .graphicsLayer { if (isRound) { with(spec) { applyContainerTransformation(scrollProgress) } } },
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -287,10 +282,10 @@ fun DynamicFeedScreen(
                 }
             } else {
                 items(dynamicList) { dynamic ->
-                    Box(modifier = Modifier.transformedHeight(this@items, spec)) {
+                    Box(modifier = Modifier.adaptiveTransformedHeight(this@items, spec)) {
                         DynamicCard(
                             item = dynamic,
-                            transformation = SurfaceTransformation(spec),
+                            transformation = if (isRound) SurfaceTransformation(spec) else null,
                             modifier = Modifier,
                             onUserClick = { mid -> navController.navigate("user_space/$mid") },
                             onArchiveClick = { bvid, aid ->

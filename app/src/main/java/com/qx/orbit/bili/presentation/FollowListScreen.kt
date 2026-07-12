@@ -33,14 +33,12 @@ import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.SwipeToReveal
 import androidx.wear.compose.material3.SwipeToRevealDefaults
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.RevealValue
 import androidx.wear.compose.material3.rememberRevealState
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.VideoCard
 import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
@@ -48,6 +46,9 @@ import com.qx.orbit.bili.presentation.ui.components.WysAlertDialog
 import com.qx.orbit.bili.presentation.ui.components.WysTimeText
 import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
 import com.qx.orbit.bili.presentation.viewmodel.FollowListViewModel
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
 
 @Composable
 fun FollowListScreen(
@@ -60,6 +61,7 @@ fun FollowListScreen(
 
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     var bangumiToUnfollow by remember { mutableStateOf<VideoCard?>(null) }
 
     ScreenScaffold(
@@ -75,7 +77,7 @@ fun FollowListScreen(
         ) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec)
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                 ) {
                     Text("追番列表", color = MaterialTheme.colorScheme.primary)
                 }
@@ -148,7 +150,7 @@ fun FollowListScreen(
                     revealState = revealState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                         .animateItem(),
                     primaryAction = {
                         PrimaryActionButton(
@@ -169,7 +171,7 @@ fun FollowListScreen(
                         onClick = {
                             navController.navigate("bangumi_detail/${videoCard.aid}")
                         },
-                        transformation = SurfaceTransformation(transformationSpec)
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                     )
                 }
             }

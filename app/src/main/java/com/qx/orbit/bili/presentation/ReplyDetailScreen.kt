@@ -26,11 +26,9 @@ import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -41,6 +39,9 @@ import com.qx.orbit.bili.data.model.Reply
 import com.qx.orbit.bili.presentation.ui.components.ReplyCard
 import com.qx.orbit.bili.presentation.viewmodel.ReplyDetailViewModel
 import com.qx.orbit.bili.presentation.ui.components.WysTimeText
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
 
 @Composable
 fun ReplyDetailScreen(
@@ -58,6 +59,7 @@ fun ReplyDetailScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     val focusRequester = remember { FocusRequester() }
     
     var showWriteReply by remember { mutableStateOf(false) }
@@ -94,8 +96,8 @@ fun ReplyDetailScreen(
                 item {
                     ReplyCard(
                         reply = root,
-                        transformation = SurfaceTransformation(transformationSpec),
-                        modifier = Modifier.transformedHeight(this, transformationSpec), // Don't animateItem for root as it might mess up header
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                        modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec), // Don't animateItem for root as it might mess up header
                         navController = navController,
                         showReplyPreview = false,
                         isDetail = true,
@@ -160,8 +162,8 @@ fun ReplyDetailScreen(
                         val child = childReplies[index]
                         ReplyCard(
                             reply = child,
-                            transformation = SurfaceTransformation(transformationSpec),
-                            modifier = Modifier.animateItem().transformedHeight(this, transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                            modifier = Modifier.animateItem().adaptiveTransformedHeight(this, transformationSpec),
                             navController = navController,
                             showReplyPreview = false,
                             isDetail = false,

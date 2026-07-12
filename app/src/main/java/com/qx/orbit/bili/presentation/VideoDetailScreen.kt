@@ -109,10 +109,8 @@ import androidx.wear.compose.material3.IconButtonDefaults
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
@@ -142,6 +140,11 @@ import com.qx.orbit.bili.util.formatCount
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import coil.request.SuccessResult
+import androidx.compose.ui.graphics.lerp
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -201,7 +204,7 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                 .allowHardware(false)
                 .build()
             val result = context.imageLoader.execute(request)
-            if (result is coil.request.SuccessResult) {
+            if (result is SuccessResult) {
                 val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
                 if (bitmap != null) {
                     val seedColor = extractSeedColorFromBitmap(bitmap)
@@ -230,11 +233,12 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
         } else {
             val listState = rememberTransformingLazyColumnState()
             val transformationSpec = rememberTransformationSpec()
+            val isRound = LocalScreenRound.current
             TransformingLazyColumn(state = listState, horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp), rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
                 item {
                     ListHeader(
-                        modifier = Modifier.transformedHeight(this, transformationSpec),
-                        transformation = SurfaceTransformation(transformationSpec),
+                        modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     ) {
                         Text("选择清晰度", color = MaterialTheme.colorScheme.primary)
                     }
@@ -262,8 +266,8 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                 showCacheDialog = false
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-                        transformation = SurfaceTransformation(transformationSpec),
+                        modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)
                     ) {
                         Text(name)
@@ -292,8 +296,8 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                 showCacheDialog = false
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-                        transformation = SurfaceTransformation(transformationSpec),
+                        modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)
                     ) {
                         Text("仅音频+字幕")
@@ -639,6 +643,7 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
     Dialog(visible = showFavDialog, onDismissRequest = { showFavDialog = false }) {
             val listState = rememberTransformingLazyColumnState()
             val transformationSpec = rememberTransformationSpec()
+            val isRound = LocalScreenRound.current
             val focusRequester = remember { FocusRequester() }
             LaunchedEffect(Unit) {
                 try { focusRequester.requestFocus() } catch (e: Exception) {}
@@ -663,8 +668,8 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                         ) {
                             item { 
                                 ListHeader(
-                                    modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-                                    transformation = SurfaceTransformation(transformationSpec)
+                                    modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                                 ) { 
                                     Text("选择收藏夹", color = MaterialTheme.colorScheme.primary) 
                                 } 
@@ -676,12 +681,12 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                         viewModel.doFavorite(folder.id) { success, msg -> RoundToast.show(context, msg) }
                                         showFavDialog = false 
                                     },
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).transformedHeight(this, transformationSpec),
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).adaptiveTransformedHeight(this, transformationSpec),
                                     contentPadding = PaddingValues(vertical = 8.dp, horizontal = 16.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = if (folder.isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer
                                     ),
-                                    transformation = SurfaceTransformation(transformationSpec)
+                                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                                 ) {
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -762,7 +767,7 @@ fun VideoInfoPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
-    val isRound = LocalConfiguration.current.isScreenRound
+    val isRound = LocalScreenRound.current
     var isDescExpanded by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -794,14 +799,8 @@ fun VideoInfoPage(
                         contentDescription = "Cover",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .transformedHeight(this, transformationSpec)
-                            .graphicsLayer {
-                                if (isRound) {
-                                    with(transformationSpec) {
-                                        applyContainerTransformation(scrollProgress)
-                                    }
-                                }
-                            }
+                            .adaptiveTransformedHeight(this, transformationSpec)
+                            .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                             .fillMaxWidth(0.95f)
                             .height(120.dp)
                             .clip(RoundedCornerShape(16.dp))
@@ -818,14 +817,8 @@ fun VideoInfoPage(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier
-                            .transformedHeight(this, transformationSpec)
-                            .graphicsLayer {
-                                if (isRound) {
-                                    with(transformationSpec) {
-                                        applyContainerTransformation(scrollProgress)
-                                    }
-                                }
-                            }
+                            .adaptiveTransformedHeight(this, transformationSpec)
+                            .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                             .fillMaxWidth()
                     )
                 }
@@ -837,14 +830,8 @@ fun VideoInfoPage(
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier
-                                .transformedHeight(this, transformationSpec)
-                                .graphicsLayer {
-                                    if (isRound) {
-                                        with(transformationSpec) {
-                                            applyContainerTransformation(scrollProgress)
-                                        }
-                                    }
-                                }
+                                .adaptiveTransformedHeight(this, transformationSpec)
+                                .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                                 .fillMaxWidth()
                         ) {
                             items(videoInfo.staff) { upInfo ->
@@ -892,14 +879,8 @@ fun VideoInfoPage(
                     Spacer(modifier = Modifier.height(8.dp))
                     Column(
                         modifier = Modifier
-                            .transformedHeight(this, transformationSpec)
-                            .graphicsLayer {
-                                if (isRound) {
-                                    with(transformationSpec) {
-                                        applyContainerTransformation(scrollProgress)
-                                    }
-                                }
-                            }
+                            .adaptiveTransformedHeight(this, transformationSpec)
+                            .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                             .fillMaxWidth()
                     ) {
                         @OptIn(ExperimentalLayoutApi::class)
@@ -1048,14 +1029,8 @@ fun VideoInfoPage(
                             maxLines = if (isDescExpanded) Int.MAX_VALUE else 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
-                                .transformedHeight(this, transformationSpec)
-                                .graphicsLayer {
-                                    if (isRound) {
-                                        with(transformationSpec) {
-                                            applyContainerTransformation(scrollProgress)
-                                        }
-                                    }
-                                }
+                                .adaptiveTransformedHeight(this, transformationSpec)
+                                .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                                 .fillMaxWidth(),
                             onClick = { offset ->
                                 val urlAnnotations = fullDesc.getStringAnnotations(tag = "URL", start = offset, end = offset)
@@ -1078,9 +1053,9 @@ fun VideoInfoPage(
                     Button(
                         onClick = onPlayClick,
                         modifier = Modifier
-                            .transformedHeight(this, transformationSpec)
+                            .adaptiveTransformedHeight(this, transformationSpec)
                             .fillMaxWidth().padding(horizontal = 8.dp),
-                        transformation = SurfaceTransformation(transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         icon = {Icon(imageVector = Icons.Filled.PlayCircleOutline, contentDescription = null)},
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
@@ -1139,8 +1114,8 @@ fun VideoInfoPage(
                     val p = tripleProgress.value
                     val amplitude = if (p < 0.9f) 4f * p else 4f * (1f - p) * 10f
                     val shakeOffset = if (p > 0f && p < 1f) (kotlin.math.sin(p * Math.PI * 50) * amplitude).toFloat().dp else 0.dp
-                    val blendedContainerColor = androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.colorScheme.primary, p)
-                    val blendedContentColor = androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.onSurface, MaterialTheme.colorScheme.onPrimary, p)
+                    val blendedContainerColor = lerp(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.colorScheme.primary, p)
+                    val blendedContentColor = lerp(MaterialTheme.colorScheme.onSurface, MaterialTheme.colorScheme.onPrimary, p)
 
                     val likeCornerRadius by animateDpAsState(if (isLiked) 16.dp else 26.dp, label = "likeShape")
                     val coinCornerRadius by animateDpAsState(if (isCoined) 16.dp else 26.dp, label = "coinShape")
@@ -1164,14 +1139,8 @@ fun VideoInfoPage(
 
                     ButtonGroup(
                         modifier = Modifier
-                            .transformedHeight(this, transformationSpec)
-                            .graphicsLayer {
-                                if (isRound) {
-                                    with(transformationSpec) {
-                                        applyContainerTransformation(scrollProgress)
-                                    }
-                                }
-                            }
+                            .adaptiveTransformedHeight(this, transformationSpec)
+                            .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
                             .fillMaxWidth(),
                     ) {
                         FilledIconButton(
@@ -1252,10 +1221,10 @@ fun VideoInfoPage(
                     Button(
                         onClick = onWatchLaterClick,
                         modifier = Modifier
-                            .transformedHeight(this, transformationSpec)
+                            .adaptiveTransformedHeight(this, transformationSpec)
                             .fillMaxWidth().padding(horizontal = 8.dp),
                         icon = { Icon(Icons.Default.Schedule, contentDescription = "Watch Later", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface) },
-                        transformation = SurfaceTransformation(transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer,
                             contentColor = MaterialTheme.colorScheme.onSurface
@@ -1272,10 +1241,10 @@ fun VideoInfoPage(
                     Button(
                         onClick = onCacheClick,
                         modifier = Modifier
-                            .transformedHeight(this, transformationSpec)
+                            .adaptiveTransformedHeight(this, transformationSpec)
                             .fillMaxWidth().padding(horizontal = 8.dp),
                         icon = { Icon(Icons.Default.Download, contentDescription = "Cache", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface) },
-                        transformation = SurfaceTransformation(transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer,
                             contentColor = MaterialTheme.colorScheme.onSurface
@@ -1307,6 +1276,7 @@ fun VideoCommentsPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
 
     ScreenScaffold(scrollState = listState, modifier = Modifier.focusRequester(focusRequester)) { contentPadding ->
         TransformingLazyColumn(
@@ -1315,8 +1285,8 @@ fun VideoCommentsPage(
         , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
-                    modifier = Modifier.transformedHeight(this, transformationSpec),
-                    transformation = SurfaceTransformation(transformationSpec)
+                    modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                 ){
                     Text(
                         "评论(${formatCount(replyCount)})",
@@ -1329,8 +1299,8 @@ fun VideoCommentsPage(
             item {
                 Button(
                     onClick = onSendCommentClick,
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     icon = {Icon(imageVector = Icons.Filled.Edit, contentDescription = null)},
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
@@ -1369,8 +1339,8 @@ fun VideoCommentsPage(
                     }
                     ReplyCard(
                         reply = replies[index],
-                        transformation = SurfaceTransformation(transformationSpec),
-                        modifier = Modifier.animateItem().transformedHeight(this, transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                        modifier = Modifier.animateItem().adaptiveTransformedHeight(this, transformationSpec),
                         navController = navController,
                         replyType = ReplyApi.REPLY_TYPE_VIDEO,
                         onRemove = { onRemove(replies[index]) },
@@ -1392,6 +1362,7 @@ fun VideoRelatedPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     val context = LocalContext.current
 
     ScreenScaffold(scrollState = listState, modifier = Modifier.focusRequester(focusRequester)) { contentPadding ->
@@ -1415,8 +1386,8 @@ fun VideoRelatedPage(
                     onClick = { 
                         navController.navigate("detail/${relatedVideos[index].bvid}/${relatedVideos[index].aid}")
                     },
-                    modifier = Modifier.transformedHeight(this, transformationSpec),
-                    transformation = SurfaceTransformation(transformationSpec)
+                    modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                 )
             }
         }

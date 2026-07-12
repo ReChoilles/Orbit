@@ -42,9 +42,7 @@ import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.itemsIndexed
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.ListHeader
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -143,6 +141,13 @@ import okhttp3.WebSocket
 import tv.danmaku.ijk.media.player.IjkMediaPlayer
 import java.io.File
 import kotlin.time.Duration.Companion.seconds
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import coil.request.ImageRequest
+import com.qx.orbit.bili.data.model.SubtitleLink
+import coil.request.SuccessResult
+import androidx.compose.ui.layout.ContentScale
 
 @Suppress("unused")
 @OptIn(ExperimentalHorologistApi::class, DelicateCoroutinesApi::class)
@@ -180,7 +185,7 @@ fun PlayerScreen(
     val rightTopBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_right", 1)) }
     val rightBottomBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_right_bottom", 0)) }
     
-    var subtitleLinks by remember { mutableStateOf(emptyArray<com.qx.orbit.bili.data.model.SubtitleLink>()) }
+    var subtitleLinks by remember { mutableStateOf(emptyArray<SubtitleLink>()) }
     var showSubtitleDialog by remember { mutableStateOf(false) }
     
     var showVolumeScreen by remember { mutableStateOf(false) }
@@ -189,6 +194,7 @@ fun PlayerScreen(
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     
     val isAutoLandscape = remember { SharedPreferencesUtil.getBoolean("player_autolandscape", false) }
+    val isRound = LocalScreenRound.current
     DisposableEffect(isAutoLandscape) {
         val activity = context.findActivity()
         val originalOrientation = activity?.requestedOrientation
@@ -338,12 +344,12 @@ fun PlayerScreen(
                 
             if (playerData.cover.isNotEmpty()) {
                 try {
-                    val request = coil.request.ImageRequest.Builder(context)
+                    val request = ImageRequest.Builder(context)
                         .data(playerData.cover)
                         .size(512)
                         .build()
                     val result = context.imageLoader.execute(request)
-                    if (result is coil.request.SuccessResult) {
+                    if (result is SuccessResult) {
                         val drawable = result.drawable
                         val bitmap = if (drawable is android.graphics.drawable.BitmapDrawable) {
                             drawable.bitmap
@@ -1162,14 +1168,14 @@ fun PlayerScreen(
         ) {
             // Video Surface - fit within round screen safe area by default
             Box(
-                modifier = Modifier.fillMaxSize(0.86524f),
+                modifier = Modifier.fillMaxSize(if (isRound) 0.86524f else 1f),
                 contentAlignment = Alignment.Center
             ) {
                 if (isAudioOnlyMode || playerData.audioUrl == "audio") {
                     AsyncImage(
                         model = playerData.cover.replace("http://", "https://"),
                         contentDescription = "Cover",
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(0.65f).clip(RoundedCornerShape(16.dp))
                     )
                 }
@@ -1650,6 +1656,7 @@ fun PlayerScreen(
             ) {
                 val listState = rememberTransformingLazyColumnState()
                 val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
 
                 TransformingLazyColumn(
                     state = listState,
@@ -1674,11 +1681,11 @@ fun PlayerScreen(
                             colors = if (isSelected) androidx.wear.compose.material3.ButtonDefaults.buttonColors() else androidx.wear.compose.material3.ButtonDefaults.filledTonalButtonColors(),
                             icon = {
                                 if (isSelected) {
-                                    androidx.wear.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Check, contentDescription = null)
+                                    Icon(Icons.Default.Check, contentDescription = null)
                                 }
                             },
-                            transformation = SurfaceTransformation(transformationSpec),
-                            modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec)
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                            modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec)
                         ) {
                             Text(text = "关闭字幕")
                         }
@@ -1701,11 +1708,11 @@ fun PlayerScreen(
                             colors = if (isSelected) androidx.wear.compose.material3.ButtonDefaults.buttonColors() else androidx.wear.compose.material3.ButtonDefaults.filledTonalButtonColors(),
                             icon = {
                                 if (isSelected) {
-                                    androidx.wear.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Check, contentDescription = null)
+                                    Icon(Icons.Default.Check, contentDescription = null)
                                 }
                             },
-                            transformation = SurfaceTransformation(transformationSpec),
-                            modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec)
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                            modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec)
                         ) {
                             Text(text = link.lang)
                         }

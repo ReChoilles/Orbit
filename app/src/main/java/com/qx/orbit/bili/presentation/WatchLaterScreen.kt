@@ -26,10 +26,8 @@ import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
 import com.qx.orbit.bili.presentation.ui.components.WysTimeText
@@ -39,6 +37,9 @@ import androidx.wear.compose.material3.SwipeToReveal
 import androidx.wear.compose.material3.SwipeToRevealDefaults
 import androidx.compose.material.icons.filled.Delete
 import androidx.wear.compose.material3.Icon
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
 
 @Composable
 fun WatchLaterScreen(
@@ -50,6 +51,7 @@ fun WatchLaterScreen(
 
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
 
     ScreenScaffold(
         timeText = { WysTimeText() },
@@ -64,7 +66,7 @@ fun WatchLaterScreen(
         ) {
             item {
                 ListHeader(
-                    transformation = SurfaceTransformation(transformationSpec)
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                 ) {
                     Text("稍后再看", color = MaterialTheme.colorScheme.primary)
                 }
@@ -75,7 +77,7 @@ fun WatchLaterScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .transformedHeight(this, transformationSpec),
+                            .adaptiveTransformedHeight(this, transformationSpec),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Image(
@@ -102,7 +104,7 @@ fun WatchLaterScreen(
                 SwipeToReveal(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                         .animateItem(),
                     primaryAction = {
                         PrimaryActionButton(
@@ -116,7 +118,7 @@ fun WatchLaterScreen(
                 ) {
                     RecommendVideoCard(
                         item = item,
-                        transformation = SurfaceTransformation(transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         onClick = {
                             when (item.type) {
                                 "bangumi" -> {
@@ -146,7 +148,7 @@ fun WatchLaterScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 16.dp)
-                            .transformedHeight(this, transformationSpec),
+                            .adaptiveTransformedHeight(this, transformationSpec),
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator()
@@ -158,7 +160,7 @@ fun WatchLaterScreen(
                 Spacer(
                     modifier = Modifier
                         .height(32.dp)
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 )
             }
         }

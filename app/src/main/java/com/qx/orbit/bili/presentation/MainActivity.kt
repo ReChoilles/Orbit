@@ -95,11 +95,9 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.RevealValue
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.SwipeToReveal
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.wear.compose.material3.rememberRevealState
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
@@ -145,11 +143,19 @@ import com.qx.orbit.bili.presentation.viewmodel.ReplyDetailViewModel
 import com.qx.orbit.bili.presentation.viewmodel.SearchViewModel
 import com.qx.orbit.bili.presentation.viewmodel.TabMode
 import com.qx.orbit.bili.presentation.viewmodel.UserSpaceViewModel
+import com.qx.orbit.bili.util.AppConfig
 import com.qx.orbit.bili.util.SharedPreferencesUtil
 import com.qx.orbit.bili.util.ShizukuUtils
 import com.qx.orbit.bili.util.VideoDownloadManager
 import rikka.shizuku.Shizuku
 import kotlin.math.roundToInt
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.viewmodel.FavoriteFolderViewModel
+import com.qx.orbit.bili.presentation.viewmodel.FavoriteDetailViewModel
+import com.qx.orbit.bili.presentation.viewmodel.HistoryViewModel
+import com.qx.orbit.bili.presentation.viewmodel.WatchLaterViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -161,6 +167,7 @@ class MainActivity : ComponentActivity() {
         )
         CookieManager.init(this)
         SharedPreferencesUtil.init(this)
+        AppConfig.init(this)
         VideoDownloadManager.init(this)
         setContent {
             WearApp()
@@ -347,20 +354,20 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
                     FollowListScreen(viewModel = followListViewModel, navController = navController)
                 }
                 composable("favorite_folders") {
-                    val favoriteFolderViewModel: com.qx.orbit.bili.presentation.viewmodel.FavoriteFolderViewModel = viewModel()
+                    val favoriteFolderViewModel: FavoriteFolderViewModel = viewModel()
                     FavoriteFoldersScreen(viewModel = favoriteFolderViewModel, navController = navController)
                 }
                 composable("favorite_detail/{fid}/{mid}") { backStackEntry ->
                     val fid = backStackEntry.arguments?.getString("fid")?.toLongOrNull() ?: 0L
-                    val favoriteDetailViewModel: com.qx.orbit.bili.presentation.viewmodel.FavoriteDetailViewModel = viewModel()
+                    val favoriteDetailViewModel: FavoriteDetailViewModel = viewModel()
                     FavoriteDetailScreen(viewModel = favoriteDetailViewModel, navController = navController, fid = fid)
                 }
                 composable("history") {
-                    val historyViewModel: com.qx.orbit.bili.presentation.viewmodel.HistoryViewModel = viewModel()
+                    val historyViewModel: HistoryViewModel = viewModel()
                     HistoryScreen(viewModel = historyViewModel, navController = navController)
                 }
                 composable("watch_later") {
-                    val watchLaterViewModel: com.qx.orbit.bili.presentation.viewmodel.WatchLaterViewModel = viewModel()
+                    val watchLaterViewModel: WatchLaterViewModel = viewModel()
                     WatchLaterScreen(viewModel = watchLaterViewModel, navController = navController)
                 }
                 composable("reply_detail") { entry ->
@@ -514,6 +521,7 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                     val menuListState = rememberTransformingLazyColumnState()
                     val menuFocusRequester = remember { FocusRequester() }
                     val menuTransformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
 
                     LaunchedEffect(showTabMenu) {
                         if (showTabMenu) {
@@ -539,8 +547,8 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { showTabMenu = false }
-                                        .transformedHeight(this, menuTransformationSpec),
-                                    transformation = SurfaceTransformation(menuTransformationSpec)
+                                        .adaptiveTransformedHeight(this, menuTransformationSpec),
+                                    transformation = if (isRound) SurfaceTransformation(menuTransformationSpec) else null
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = "Menu", tint = MaterialTheme.colorScheme.primary)
@@ -562,9 +570,9 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                         ),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .transformedHeight(this, menuTransformationSpec),
+                                            .adaptiveTransformedHeight(this, menuTransformationSpec),
                                         contentPadding = PaddingValues(start = 8.dp, top = 8.dp, bottom = 8.dp, end = 14.dp),
-                                        transformation = SurfaceTransformation(menuTransformationSpec)
+                                        transformation = if (isRound) SurfaceTransformation(menuTransformationSpec) else null
                                     ) {
                                         UserAvatar(
                                             avatarUrl = navInfo!!.face ?: "",
@@ -598,9 +606,9 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                         },
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .transformedHeight(this, menuTransformationSpec),
+                                            .adaptiveTransformedHeight(this, menuTransformationSpec),
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                        transformation = SurfaceTransformation(menuTransformationSpec)
+                                        transformation = if (isRound) SurfaceTransformation(menuTransformationSpec) else null
                                     ) {
                                         Icon(imageVector = Icons.Default.AccountCircle, contentDescription = "登录")
                                         Spacer(modifier = Modifier.width(8.dp))
@@ -620,8 +628,8 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .transformedHeight(this, menuTransformationSpec),
-                                    transformation = SurfaceTransformation(menuTransformationSpec)
+                                        .adaptiveTransformedHeight(this, menuTransformationSpec),
+                                    transformation = if (isRound) SurfaceTransformation(menuTransformationSpec) else null
                                 ) {
                                     Icon(imageVector = Icons.Default.Search, modifier = Modifier.size(20.dp), contentDescription = "搜索")
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -641,8 +649,8 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .transformedHeight(this, menuTransformationSpec),
-                                    transformation = SurfaceTransformation(menuTransformationSpec)
+                                        .adaptiveTransformedHeight(this, menuTransformationSpec),
+                                    transformation = if (isRound) SurfaceTransformation(menuTransformationSpec) else null
                                 ) {
                                     when (tab) {
                                         TabMode.RECOMMEND -> {
@@ -683,8 +691,8 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .transformedHeight(this, menuTransformationSpec),
-                                    transformation = SurfaceTransformation(menuTransformationSpec)
+                                        .adaptiveTransformedHeight(this, menuTransformationSpec),
+                                    transformation = if (isRound) SurfaceTransformation(menuTransformationSpec) else null
                                 ) {
                                     Icon(Icons.Default.Movie, modifier = Modifier.size(20.dp), contentDescription = "追番列表")
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -703,8 +711,8 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .transformedHeight(this, menuTransformationSpec),
-                                    transformation = SurfaceTransformation(menuTransformationSpec)
+                                        .adaptiveTransformedHeight(this, menuTransformationSpec),
+                                    transformation = if (isRound) SurfaceTransformation(menuTransformationSpec) else null
                                 ) {
                                     Icon(Icons.Default.Favorite, modifier = Modifier.size(20.dp), contentDescription = "我的收藏")
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -723,8 +731,8 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .transformedHeight(this, menuTransformationSpec),
-                                    transformation = SurfaceTransformation(menuTransformationSpec)
+                                        .adaptiveTransformedHeight(this, menuTransformationSpec),
+                                    transformation = if (isRound) SurfaceTransformation(menuTransformationSpec) else null
                                 ) {
                                     Icon(Icons.Default.History, modifier = Modifier.size(20.dp), contentDescription = "历史记录")
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -743,8 +751,8 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .transformedHeight(this, menuTransformationSpec),
-                                    transformation = SurfaceTransformation(menuTransformationSpec)
+                                        .adaptiveTransformedHeight(this, menuTransformationSpec),
+                                    transformation = if (isRound) SurfaceTransformation(menuTransformationSpec) else null
                                 ) {
                                     Icon(Icons.Default.Schedule, modifier = Modifier.size(20.dp), contentDescription = "稍后再看")
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -763,8 +771,8 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .transformedHeight(this, menuTransformationSpec),
-                                    transformation = SurfaceTransformation(menuTransformationSpec)
+                                        .adaptiveTransformedHeight(this, menuTransformationSpec),
+                                    transformation = if (isRound) SurfaceTransformation(menuTransformationSpec) else null
                                 ) {
                                     Icon(Icons.Default.Cached, modifier = Modifier.size(20.dp), contentDescription = "缓存管理")
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -783,8 +791,8 @@ fun HomeScreen(viewModel: MainViewModel, navController: NavHostController) {
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .transformedHeight(this, menuTransformationSpec),
-                                    transformation = SurfaceTransformation(menuTransformationSpec)
+                                        .adaptiveTransformedHeight(this, menuTransformationSpec),
+                                    transformation = if (isRound) SurfaceTransformation(menuTransformationSpec) else null
                                 ) {
                                     Icon(imageVector = Icons.Default.Settings, modifier = Modifier.size(20.dp), contentDescription = "设置")
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -815,6 +823,7 @@ fun RecommendScreen(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
 
     val titleHeight = 36.dp // Used to pad the list top so first item is visible
     
@@ -871,7 +880,7 @@ fun RecommendScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .animateItem()
-                            .transformedHeight(this, transformationSpec),
+                            .adaptiveTransformedHeight(this, transformationSpec),
                         primaryAction = {
                             PrimaryActionButton(
                                 onClick = { 
@@ -899,8 +908,8 @@ fun RecommendScreen(
                             onClick = {
                                 navController.navigate("detail/${videoList[index].bvid}/${videoList[index].aid}")
                             },
-                            modifier = Modifier.transformedHeight(this, transformationSpec),
-                            transformation = SurfaceTransformation(transformationSpec)
+                            modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                         )
                     }
                 }

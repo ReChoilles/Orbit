@@ -57,15 +57,18 @@ import com.qx.orbit.bili.data.model.ArticleCard
 import androidx.compose.runtime.remember
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
 import com.qx.orbit.bili.presentation.viewmodel.UserSpaceViewModel
 import com.qx.orbit.bili.util.formatCount
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.data.remote.CookieManager
+import coil.request.SuccessResult
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -86,7 +89,7 @@ fun UserSpaceScreen(
 
     val pagerState = rememberPagerState(pageCount = { 3 })
     val focusRequesters = remember { List(3) { FocusRequester() } }
-    val currentMid = remember { com.qx.orbit.bili.data.remote.CookieManager.getMid() }
+    val currentMid = remember { CookieManager.getMid() }
     val isSelf = mid == currentMid
 
     val context = LocalContext.current
@@ -105,7 +108,7 @@ fun UserSpaceScreen(
                 .allowHardware(false)
                 .build()
             val result = context.imageLoader.execute(request)
-            if (result is coil.request.SuccessResult) {
+            if (result is SuccessResult) {
                 val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
                 if (bitmap != null) {
                     val seedColor = extractSeedColorFromBitmap(bitmap)
@@ -174,6 +177,7 @@ fun UserDynamicsPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     val signExpanded = remember { mutableStateOf(false) }
     
     ScreenScaffold(
@@ -194,12 +198,8 @@ fun UserDynamicsPage(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)
-                            .transformedHeight(this, transformationSpec)
-                            .graphicsLayer {
-                                with(transformationSpec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                            },
+                            .adaptiveTransformedHeight(this, transformationSpec)
+                            .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         val isLive = info.live_room?.live_status == 1
@@ -270,10 +270,10 @@ fun UserDynamicsPage(
                         viewModel.loadMoreDynamics()
                     }
                 }
-                Box(modifier = Modifier.transformedHeight(this@itemsIndexed, transformationSpec)) {
+                Box(modifier = Modifier.adaptiveTransformedHeight(this@itemsIndexed, transformationSpec)) {
                     DynamicCard(
                         item = item,
-                        transformation = SurfaceTransformation(transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                         onClick = { if (item.major_type == "MAJOR_TYPE_OPUS" || item.major_type == "MAJOR_TYPE_ARTICLE") navController.navigate("opus_detail/${item.dynamicId}") else navController.navigate("dynamic_detail/${item.dynamicId}") },
                         onUserClick = { mid -> navController.navigate("user_space/$mid") },
                         onArchiveClick = { bvid, aid -> navController.navigate("detail/$bvid/$aid") },
@@ -296,6 +296,7 @@ fun UserVideosPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     ScreenScaffold(
         timeText = { WysTimeText() },
         scrollState = listState, 
@@ -309,8 +310,8 @@ fun UserVideosPage(
             , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
-                    modifier = Modifier.transformedHeight(this, transformationSpec),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                 ) {
                     Text("发布的视频", color = MaterialTheme.colorScheme.primary)
                 }
@@ -321,13 +322,13 @@ fun UserVideosPage(
                         viewModel.loadMoreVideos()
                     }
                 }
-                Box(modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp).transformedHeight(this@itemsIndexed, transformationSpec)) {
+                Box(modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp).adaptiveTransformedHeight(this@itemsIndexed, transformationSpec)) {
                     RecommendVideoCard(
                         item = item, 
                         onClick = {
                             navController.navigate("detail/${item.bvid}/${item.aid}")
                         },
-                        transformation = SurfaceTransformation(transformationSpec)
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                     )
                 }
             }
@@ -347,6 +348,7 @@ fun UserArticlesPage(
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     ScreenScaffold(
         timeText = { WysTimeText() },
         scrollState = listState, 
@@ -360,8 +362,8 @@ fun UserArticlesPage(
             , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
             item {
                 ListHeader(
-                    modifier = Modifier.transformedHeight(this, transformationSpec),
-                    transformation = SurfaceTransformation(transformationSpec),
+                    modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                 ) {
                     Text("发布的图文", color = MaterialTheme.colorScheme.primary)
                 }
@@ -372,13 +374,13 @@ fun UserArticlesPage(
                         viewModel.loadMoreArticles()
                     }
                 }
-                Box(modifier = Modifier.transformedHeight(this@itemsIndexed, transformationSpec)) {
+                Box(modifier = Modifier.adaptiveTransformedHeight(this@itemsIndexed, transformationSpec)) {
                     ArticleCardItem(
                         item = item, 
                         onClick = {
                             navController.navigate("article_detail/${item.id}")
                         },
-                        transformation = SurfaceTransformation(transformationSpec)
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                     )
                 }
             }

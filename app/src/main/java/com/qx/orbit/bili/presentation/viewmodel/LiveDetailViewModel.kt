@@ -20,6 +20,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 
 import java.util.UUID
+import com.qx.orbit.bili.data.api.BiliApiService
+import com.qx.orbit.bili.data.remote.Result
 
 data class EmoteInline(
     val url: String,
@@ -88,9 +90,9 @@ class LiveDetailViewModel : ViewModel() {
                     // Fetch host user info for avatar
                     launch {
                         try {
-                            val biliApi = com.qx.orbit.bili.data.api.BiliApiService.create()
+                            val biliApi = BiliApiService.create()
                             when (val cardResult = biliApi.getUserCard(roomInfo.uid)) {
-                                is com.qx.orbit.bili.data.remote.Result.Success -> {
+                                is Result.Success -> {
                                     val card = cardResult.data.asJsonObject
                                         .getAsJsonObject("data")
                                         ?.getAsJsonObject("card")

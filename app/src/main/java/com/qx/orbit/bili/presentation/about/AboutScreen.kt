@@ -23,8 +23,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,12 +43,16 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.ScreenScaffoldDefaults.contentPadding
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TitleCard
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
+import androidx.compose.foundation.text.ClickableText
 import com.qx.orbit.bili.R
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.ui.components.RoundToast
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import com.qx.orbit.bili.presentation.util.parseRichText
+import androidx.wear.compose.material3.SurfaceTransformation
 
 
 @Composable
@@ -54,13 +61,13 @@ fun AboutScreen(navController: NavController) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
     var showBrowserError by remember { mutableStateOf(false) }
-    val isRound = LocalConfiguration.current.isScreenRound
+    val isRound = LocalScreenRound.current
     var showDonationDialog by remember { mutableStateOf(false) }
 
     ScreenScaffold(
         scrollState = listState,
         contentPadding = contentPadding
-    ) {
+    ) { it ->
         TransformingLazyColumn(
             state = listState,
             contentPadding = it,
@@ -70,7 +77,7 @@ fun AboutScreen(navController: NavController) {
                 ListHeader(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
+                        .adaptiveTransformedHeight(this, transformationSpec),
                     transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                 ) {
                     Text(text = stringResource(R.string.about_software), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.W700)
@@ -82,14 +89,8 @@ fun AboutScreen(navController: NavController) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .graphicsLayer {
-                            if (isRound) {
-                                with(transformationSpec) {
-                                    applyContainerTransformation(scrollProgress)
-                                }
-                            }
-                        }
-                        .transformedHeight(this, transformationSpec),
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
+                        .adaptiveTransformedHeight(this, transformationSpec),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -105,14 +106,8 @@ fun AboutScreen(navController: NavController) {
                 Column(
                     modifier = Modifier
                     .fillMaxWidth()
-                    .graphicsLayer {
-                        if (isRound) {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
-                    }
-                    .transformedHeight(this, transformationSpec),
+                    .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
+                    .adaptiveTransformedHeight(this, transformationSpec),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -126,23 +121,46 @@ fun AboutScreen(navController: NavController) {
                     )
                 }
             }
-            item { Spacer(modifier = Modifier.height(8.dp).transformedHeight(this, transformationSpec)) }
+            item { Spacer(modifier = Modifier.height(8.dp).adaptiveTransformedHeight(this, transformationSpec)) }
 
             // 简介
             item {
+                val uriHandler = LocalUriHandler.current
+                val clipboardManager = LocalClipboardManager.current
+                val descText = stringResource(R.string.about_description)
+                val (annotatedDesc, _) = parseRichText(descText, emptyMap())
+                fun openUrl(url: String) {
+                    try {
+                        uriHandler.openUri(url)
+                    } catch (_: Exception) {
+                        clipboardManager.setText(AnnotatedString(url))
+                        RoundToast.show(context, "链接已复制到剪贴板")
+                    }
+                }
                 TitleCard(
                     onClick = { },
                     title = { Text(stringResource(R.string.software_intro)) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
+                        .adaptiveTransformedHeight(this, transformationSpec),
                     transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                 ) {
-                    Text(text = stringResource(R.string.about_description), style = MaterialTheme.typography.bodySmall)
+                    ClickableText(
+                        text = annotatedDesc,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        onClick = { offset ->
+                            annotatedDesc.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                                .firstOrNull()?.let { openUrl(it.item) }
+                            annotatedDesc.getStringAnnotations(tag = "VIDEO", start = offset, end = offset)
+                                .firstOrNull()?.let { openUrl(it.item) }
+                        }
+                    )
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp).transformedHeight(this, transformationSpec)) }
+            item { Spacer(modifier = Modifier.height(8.dp).adaptiveTransformedHeight(this, transformationSpec)) }
 
         // 开发者列表
             item {
@@ -151,12 +169,8 @@ fun AboutScreen(navController: NavController) {
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier
                         .padding(bottom = 4.dp)
-                        .graphicsLayer {
-                            with(transformationSpec) {
-                                applyContainerTransformation(scrollProgress)
-                            }
-                        }
-                        .transformedHeight(this, transformationSpec)
+                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
+                        .adaptiveTransformedHeight(this, transformationSpec)
                 )
             }
 
@@ -170,8 +184,8 @@ fun AboutScreen(navController: NavController) {
                     onClick = { showDonationDialog = true },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
-                    transformation = SurfaceTransformation(transformationSpec),
+                        .adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.primary,
@@ -211,8 +225,8 @@ fun AboutScreen(navController: NavController) {
                     onClick = { showDonationDialog = true },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
-                    transformation = SurfaceTransformation(transformationSpec),
+                        .adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer

@@ -46,11 +46,12 @@ import androidx.wear.compose.material.dialog.Dialog
 import androidx.wear.compose.material3.IconButton
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
-import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.util.SharedPreferencesUtil
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
 
 @Composable
 fun PlayerCustomizationScreen(
@@ -182,6 +183,7 @@ fun PlayerCustomizationScreen(
         ) {
             val listState = rememberTransformingLazyColumnState()
             val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
 
             TransformingLazyColumn(
                 state = listState,
@@ -246,8 +248,8 @@ fun PlayerCustomizationScreen(
                                 Icon(Icons.Default.Close, contentDescription = null)
                             }
                         },
-                        transformation = SurfaceTransformation(transformationSpec),
-                        modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                        modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
                         enabled = !isDisabled
                     ) {
                         Text(text = name)

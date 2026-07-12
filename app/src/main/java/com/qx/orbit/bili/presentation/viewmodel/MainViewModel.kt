@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.qx.orbit.bili.data.remote.CookieManager
+import com.qx.orbit.bili.data.api.CookiesApi
+import com.qx.orbit.bili.data.api.CookieRefreshApi
 
 enum class TabMode(val title: String) {
     RECOMMEND("推荐"),
@@ -40,11 +43,11 @@ class MainViewModel : ViewModel() {
     init {
         viewModelScope.launch {
             try {
-                if (!com.qx.orbit.bili.data.remote.CookieManager.getCookie().contains("buvid3")) {
-                    com.qx.orbit.bili.data.api.CookiesApi.checkCookies()
+                if (!CookieManager.getCookie().contains("buvid3")) {
+                    CookiesApi.checkCookies()
                 }
-                if (com.qx.orbit.bili.data.remote.CookieManager.getCookie().contains("SESSDATA")) {
-                    launch { com.qx.orbit.bili.data.api.CookieRefreshApi.doCookieRefresh(auto = true) }
+                if (CookieManager.getCookie().contains("SESSDATA")) {
+                    launch { CookieRefreshApi.doCookieRefresh(auto = true) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -115,7 +118,7 @@ class MainViewModel : ViewModel() {
             try {
                 RecommendApi.dislike(video.aid)
                 if (video.mid > 0) {
-                    com.qx.orbit.bili.data.api.UserInfoApi.blockUser(video.mid)
+                    UserInfoApi.blockUser(video.mid)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

@@ -14,7 +14,6 @@ import androidx.wear.compose.foundation.lazy.itemsIndexed
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.*
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.model.VideoCard
 import com.qx.orbit.bili.presentation.ui.components.RecommendVideoCard
@@ -22,6 +21,9 @@ import com.qx.orbit.bili.presentation.ui.components.WysTimeText
 import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
 import com.qx.orbit.bili.presentation.viewmodel.FavoriteFolderViewModel
 import com.qx.orbit.bili.data.remote.CookieManager
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
 
 @Composable
 fun FavoriteFoldersScreen(
@@ -34,6 +36,7 @@ fun FavoriteFoldersScreen(
 
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
     
     // We get mid to pass to the detail screen since some APIs might need it.
     // Wait, let's parse inside a remember block or just read it.
@@ -57,8 +60,8 @@ fun FavoriteFoldersScreen(
                 ListHeader(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec),
-                    transformation = SurfaceTransformation(transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null
                 ) {
                     Text("我的收藏夹", color = MaterialTheme.colorScheme.primary)
                 }
@@ -122,10 +125,10 @@ fun FavoriteFoldersScreen(
                     onClick = {
                         navController.navigate("favorite_detail/${folder.mediaId}/$mid")
                     },
-                    transformation = SurfaceTransformation(transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .adaptiveTransformedHeight(this, transformationSpec)
                         .animateItem()
                 )
             }

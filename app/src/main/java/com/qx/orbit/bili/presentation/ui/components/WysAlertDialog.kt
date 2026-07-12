@@ -34,9 +34,10 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import com.qx.orbit.bili.presentation.util.RotaryUtils
 import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
 
 @Composable
 fun WysAlertDialog(
@@ -53,6 +54,7 @@ fun WysAlertDialog(
             ) {
                 val listState = rememberTransformingLazyColumnState()
                 val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
 
                 ScreenScaffold(
                     scrollState = listState,
@@ -72,12 +74,8 @@ fun WysAlertDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 8.dp)
-                                    .graphicsLayer {
-                                        with(transformationSpec) {
-                                            applyContainerTransformation(scrollProgress)
-                                        }
-                                    }
-                                    .transformedHeight(this, transformationSpec),
+                                    .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
+                                    .adaptiveTransformedHeight(this, transformationSpec),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 //Spacer(modifier = Modifier.height(24.dp))
@@ -116,12 +114,8 @@ fun WysAlertDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 8.dp)
-                                        .graphicsLayer {
-                                            with(transformationSpec) {
-                                                applyContainerTransformation(scrollProgress)
-                                            }
-                                        }
-                                        .transformedHeight(this, transformationSpec),
+                                        .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
+                                        .adaptiveTransformedHeight(this, transformationSpec),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     content()
@@ -139,12 +133,8 @@ fun WysAlertDialog(
                                         horizontal = 20.dp,
                                         vertical = 20.dp
                                     )
-                                    .graphicsLayer {
-                                        with(transformationSpec) {
-                                            applyContainerTransformation(scrollProgress)
-                                        }
-                                    }
-                                    .transformedHeight(this, transformationSpec),
+                                    .graphicsLayer { if (isRound) { with(transformationSpec) { applyContainerTransformation(scrollProgress) } } }
+                                    .adaptiveTransformedHeight(this, transformationSpec),
                                 spacing = 8.dp
                             ) {
                                 FilledIconButton(
