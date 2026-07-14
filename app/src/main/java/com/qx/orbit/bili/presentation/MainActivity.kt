@@ -151,6 +151,7 @@ import rikka.shizuku.Shizuku
 import kotlin.math.roundToInt
 import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
 import androidx.wear.compose.material3.SurfaceTransformation
+import com.qx.orbit.bili.presentation.settings.SettingPlayerEngineScreen
 import com.qx.orbit.bili.presentation.theme.LocalScreenRound
 import com.qx.orbit.bili.presentation.viewmodel.FavoriteFolderViewModel
 import com.qx.orbit.bili.presentation.viewmodel.FavoriteDetailViewModel
@@ -440,6 +441,9 @@ fun WearApp(viewModel: MainViewModel = viewModel()) {
             }
             composable("settings_danmaku_engine") {
                 SettingDanmakuEngineScreen(navController = navController)
+            }
+            composable("settings_player_engine") {
+                SettingPlayerEngineScreen(navController = navController)
             }
             composable("settings_video_quality") {
                 SettingVideoQualityScreen(navController = navController)

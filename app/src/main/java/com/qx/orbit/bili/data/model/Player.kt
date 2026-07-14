@@ -8,6 +8,7 @@ data class PlayerData(
     val videoUrl: String = "",
     val danmakuUrl: String = "",
     val qn: Int = -1,
+    val audioQn: Int = -1,
     val qnStrList: Array<String>? = null,
     val qnValueList: IntArray? = null,
     val aid: Long = 0,
@@ -56,6 +57,12 @@ data class DashData(
         if (flacAudio != null) return flacAudio
         if (dolbyAudio != null) return dolbyAudio
         return audioStreams.maxByOrNull { it.bandwidth }
+    }
+
+    fun getAudioStream(qn: Int): DashAudioStream? {
+        if (qn == 30251 && flacAudio != null) return flacAudio
+        if (qn == 30250 && dolbyAudio != null) return dolbyAudio
+        return audioStreams.find { it.id == qn } ?: getBestAudioStream()
     }
 
     companion object {

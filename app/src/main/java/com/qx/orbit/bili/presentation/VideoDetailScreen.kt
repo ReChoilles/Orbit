@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.runtime.Composable
@@ -145,6 +146,8 @@ import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
 import androidx.wear.compose.material3.SurfaceTransformation
 import coil.request.SuccessResult
 import androidx.compose.ui.graphics.lerp
+import androidx.wear.compose.material3.EdgeButton
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -168,8 +171,12 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
     var showCoinDialog by remember { mutableStateOf(false) }
     var showFavDialog by remember { mutableStateOf(false) }
     var showCacheDialog by remember { mutableStateOf(false) }
+    var showPlayerSelectionDialog by remember { mutableStateOf(false) }
+    var playConfig by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    var showEpisodeDialog by remember { mutableStateOf(false) }
     var showTripleSuccessOverlay by remember { mutableStateOf(false) }
     var cacheQualities by remember { mutableStateOf<List<Pair<String, Int>>>(emptyList()) }
+    var cacheAudioQualities by remember { mutableStateOf<List<Pair<String, Int>>>(emptyList()) }
     var isFetchingQualities by remember { mutableStateOf(false) }
     
     val emotes by viewModel.emotes.collectAsState()
@@ -308,6 +315,204 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
         }
     }
 
+    // Player Selection Dialog
+    Dialog(
+        visible = showPlayerSelectionDialog,
+        onDismissRequest = { 
+            showPlayerSelectionDialog = false 
+            playConfig = null
+        }
+    ) {
+        var tempSelectedQn by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("play_qn", 16)) }
+        var tempSelectedAudioQn by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("play_audio_qn", 30280)) }
+        var tempSelectedPlayer by remember { mutableStateOf(SharedPreferencesUtil.getString("player", "apsisPlayer")) }
+
+        if (isFetchingQualities) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else {
+            val listState = rememberTransformingLazyColumnState()
+            val transformationSpec = rememberTransformationSpec()
+            val isRound = LocalScreenRound.current
+            ScreenScaffold(
+                scrollState = listState,
+                edgeButton = {
+                    EdgeButton(
+                        onClick = {
+                            showPlayerSelectionDialog = false
+                            playConfig = if (tempSelectedPlayer == "pureAudioPlayer") {
+                                Pair(tempSelectedAudioQn, tempSelectedPlayer)
+                            } else {
+                                Pair(tempSelectedQn, tempSelectedPlayer)
+                            }
+                            val info = videoInfo ?: return@EdgeButton
+                            if (info.cids.size > 1) {
+                                showEpisodeDialog = true
+                            } else {
+                                val cidToPlay = if (info.history != null && info.cids.contains(info.history.cid)) {
+                                    info.history.cid
+                                } else {
+                                    info.cids.firstOrNull() ?: 0L
+                                }
+                                val playerData = PlayerData(
+                                    title = info.title,
+                                    aid = aid,
+                                    cid = cidToPlay,
+                                    cids = info.cids,
+                                    pagenames = info.pagenames,
+                                    type = if (info.epid > 0) PlayerData.TYPE_BANGUMI else PlayerData.TYPE_VIDEO,
+                                    qn = if (tempSelectedPlayer == "pureAudioPlayer") -1 else tempSelectedQn,
+                                    audioQn = if (tempSelectedPlayer == "pureAudioPlayer") tempSelectedAudioQn else -1,
+                                    progress = info.history?.progress ?: 0,
+                                    cover = info.cover
+                                )
+                                PlayerApi.jumpToPlayer(context, navController, playerData, tempSelectedPlayer)
+                                playConfig = null
+                            }
+                        },
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("播放视频")
+                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                        }
+                    }
+                }
+                ) { contentPadding ->
+                TransformingLazyColumn(
+                    state = listState,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = contentPadding,
+                    rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)
+                ) {
+                    item {
+                        ListHeader(
+                            modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                        ) {
+                            Text("选择播放器", color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    val players = listOf(
+                        "apsisPlayer" to "Apsis Player",
+                        "pureAudioPlayer" to "Apsis AudioPlayer",
+                        "aliangPlayer" to "凉腕播放器"
+                    )
+                    items(players.size) { index ->
+                        val (playerKey, playerName) = players[index]
+                        val isSelected = tempSelectedPlayer == playerKey
+                        Button(
+                            onClick = { tempSelectedPlayer = playerKey },
+                            modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                            colors = if (isSelected) ButtonDefaults.buttonColors() else ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)
+                        ) {
+                            Text(playerName)
+                        }
+                    }
+                    item {
+                        ListHeader(
+                            modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                            transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                        ) {
+                            Text(if (tempSelectedPlayer == "pureAudioPlayer") "选择音质" else "选择清晰度", color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    if (tempSelectedPlayer == "pureAudioPlayer") {
+                        items(cacheAudioQualities) { (name, qn) ->
+                            val isSelected = tempSelectedAudioQn == qn
+                            Button(
+                                onClick = { tempSelectedAudioQn = qn },
+                                modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                                transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                                colors = if (isSelected) ButtonDefaults.buttonColors() else ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)
+                            ) {
+                                Text(name)
+                            }
+                        }
+                    } else {
+                        items(cacheQualities) { (name, qn) ->
+                            val isSelected = tempSelectedQn == qn
+                            Button(
+                                onClick = { tempSelectedQn = qn },
+                                modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec),
+                                transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                                colors = if (isSelected) ButtonDefaults.buttonColors() else ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)
+                            ) {
+                                Text(name)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Episode selection dialog for multi-part videos
+    Dialog(
+        visible = showEpisodeDialog,
+        onDismissRequest = { 
+            showEpisodeDialog = false
+            playConfig = null
+        }
+    ) {
+        val listState = rememberTransformingLazyColumnState()
+        val transformationSpec = rememberTransformationSpec()
+        val isRound = LocalScreenRound.current
+
+        TransformingLazyColumn(
+            state = listState,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp),
+            rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)
+        ) {
+            item {
+                ListHeader(
+                    modifier = Modifier.adaptiveTransformedHeight(this, transformationSpec),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                ) {
+                    Text("选择分P", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            val pagenames = videoInfo?.pagenames ?: emptyList()
+            items(pagenames.size) { index ->
+                val name = pagenames[index]
+                Button(
+                    onClick = {
+                        showEpisodeDialog = false
+                        val info = videoInfo ?: return@Button
+                        val qn = playConfig?.first ?: SharedPreferencesUtil.getInt("play_qn", 16)
+                        val playerChoice = playConfig?.second
+                        val cidToPlay = info.cids.getOrNull(index) ?: info.cids.firstOrNull() ?: 0L
+                        val playerData = PlayerData(
+                            title = name,
+                            aid = if (info.aid > 0) info.aid else aid, // Fallback to provided aid if needed
+                            cid = cidToPlay,
+                            cids = info.cids,
+                            pagenames = info.pagenames,
+                            type = if (info.epid > 0) PlayerData.TYPE_BANGUMI else PlayerData.TYPE_VIDEO,
+                            qn = if (playerChoice == "pureAudioPlayer") -1 else qn,
+                            audioQn = if (playerChoice == "pureAudioPlayer") qn else -1,
+                            progress = if (info.history?.cid == cidToPlay) info.history.progress else 0,
+                            cover = info.cover,
+                            currentPageIndex = index
+                        )
+                        PlayerApi.jumpToPlayer(context, navController, playerData, playerChoice)
+                        playConfig = null
+                    },
+                    colors = ButtonDefaults.filledTonalButtonColors(),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                    modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec)
+                ) {
+                    Text(text = name)
+                }
+            }
+            item { Spacer(modifier = Modifier.height(32.dp)) }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             AnimatedContent(
                 targetState = (isLoading && videoInfo == null) || (videoInfo != null && !isColorExtracted),
@@ -355,24 +560,64 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                             onBackClick = { navController.popBackStack() },
                             onPlayClick = {
                                 val info = videoInfo ?: return@VideoInfoPage
-                                val qn = SharedPreferencesUtil.getInt("play_qn", 16)
-                                val cidToPlay = if (info.history != null && info.cids.contains(info.history.cid)) {
-                                    info.history.cid
+                                if (info.cids.size > 1) {
+                                    showEpisodeDialog = true
                                 } else {
-                                    info.cids.firstOrNull() ?: 0L
+                                    val qn = playConfig?.first ?: SharedPreferencesUtil.getInt("play_qn", 16)
+                                    val playerChoice = playConfig?.second
+                                    val cidToPlay = if (info.history != null && info.cids.contains(info.history.cid)) {
+                                        info.history.cid
+                                    } else {
+                                        info.cids.firstOrNull() ?: 0L
+                                    }
+                                    val playerData = PlayerData(
+                                        title = info.title,
+                                        aid = aid,
+                                        cid = cidToPlay,
+                                        cids = info.cids,
+                                        pagenames = info.pagenames,
+                                        type = if (info.epid > 0) PlayerData.TYPE_BANGUMI else PlayerData.TYPE_VIDEO,
+                                        qn = if (playerChoice == "pureAudioPlayer") -1 else qn,
+                                        audioQn = if (playerChoice == "pureAudioPlayer") qn else -1,
+                                        progress = info.history?.progress ?: 0,
+                                        cover = info.cover
+                                    )
+                                    PlayerApi.jumpToPlayer(context, navController, playerData, playerChoice)
+                                    playConfig = null
                                 }
-                                val playerData = PlayerData(
-                                    title = info.title,
-                                    aid = aid,
-                                    cid = cidToPlay,
-                                    cids = info.cids,
-                                    pagenames = info.pagenames,
-                                    type = if (info.epid > 0) PlayerData.TYPE_BANGUMI else PlayerData.TYPE_VIDEO,
-                                    qn = qn,
-                                    progress = info.history?.progress ?: 0,
-                                    cover = info.cover
-                                )
-                                PlayerApi.jumpToPlayer(context, navController, playerData)
+                            },
+                            onPlayLongClick = {
+                                showPlayerSelectionDialog = true
+                                if (cacheQualities.isEmpty()) {
+                                    isFetchingQualities = true
+                                    viewModel.viewModelScope.launch {
+                                        val info = videoInfo
+                                        if (info != null) {
+                                            val pd = PlayerApi.getVideoDash(PlayerData(aid = aid, cid = info.cids.firstOrNull() ?: 0L, qn = 112))
+                                            val names = pd.qnStrList
+                                            val vals = pd.qnValueList
+                                            if (names != null && vals != null && names.size == vals.size) {
+                                                cacheQualities = names.zip(vals.toTypedArray())
+                                            }
+                                            val audioList = mutableListOf<Pair<String, Int>>()
+                                            pd.dashData?.let { dash ->
+                                                dash.audioStreams.forEach {
+                                                    val name = when(it.id) {
+                                                        30216 -> "64K"
+                                                        30232 -> "132K"
+                                                        30280 -> "192K"
+                                                        else -> "${it.id}"
+                                                    }
+                                                    audioList.add(name to it.id)
+                                                }
+                                                if (dash.dolbyAudio != null) audioList.add("杜比全景声" to 30250)
+                                                if (dash.flacAudio != null) audioList.add("Hi-Res无损" to 30251)
+                                            }
+                                            cacheAudioQualities = audioList
+                                        }
+                                        isFetchingQualities = false
+                                    }
+                                }
                             },
                             onLikeClick = { viewModel.toggleLike { success, msg -> RoundToast.show(context, msg) } },
                             onTripleClick = {
@@ -409,12 +654,27 @@ fun VideoDetailScreen(navController: NavHostController, bvid: String, aid: Long,
                                     viewModel.viewModelScope.launch {
                                         val info = videoInfo
                                         if (info != null) {
-                                            val pd = PlayerApi.getVideo(PlayerData(aid = aid, cid = info.cids.firstOrNull() ?: 0L, qn = 112))
+                                            val pd = PlayerApi.getVideoDash(PlayerData(aid = aid, cid = info.cids.firstOrNull() ?: 0L, qn = 112))
                                             val names = pd.qnStrList
                                             val vals = pd.qnValueList
                                             if (names != null && vals != null && names.size == vals.size) {
                                                 cacheQualities = names.zip(vals.toTypedArray())
                                             }
+                                            val audioList = mutableListOf<Pair<String, Int>>()
+                                            pd.dashData?.let { dash ->
+                                                dash.audioStreams.forEach {
+                                                    val name = when(it.id) {
+                                                        30216 -> "64K"
+                                                        30232 -> "132K"
+                                                        30280 -> "192K"
+                                                        else -> "${it.id}"
+                                                    }
+                                                    audioList.add(name to it.id)
+                                                }
+                                                if (dash.dolbyAudio != null) audioList.add("杜比全景声" to 30250)
+                                                if (dash.flacAudio != null) audioList.add("Hi-Res无损" to 30251)
+                                            }
+                                            cacheAudioQualities = audioList
                                         }
                                         isFetchingQualities = false
                                     }
@@ -757,6 +1017,7 @@ fun VideoInfoPage(
     focusRequester: FocusRequester,
     onBackClick: () -> Unit,
     onPlayClick: () -> Unit,
+    onPlayLongClick: () -> Unit,
     onLikeClick: () -> Unit,
     onTripleClick: () -> Unit,
     onCoinClick: () -> Unit,
@@ -1037,7 +1298,7 @@ fun VideoInfoPage(
                                 if (urlAnnotations.isNotEmpty()) {
                                     val url = urlAnnotations.first().item
                                     try {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                        val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                                         context.startActivity(intent)
                                     } catch (e: Exception) {}
                                 } else {
@@ -1051,7 +1312,8 @@ fun VideoInfoPage(
                 // 6. Play Button
                 item {
                     Button(
-                        onClick = onPlayClick,
+                        onClick = { onPlayClick() },
+                        onLongClick = { onPlayLongClick() },
                         modifier = Modifier
                             .adaptiveTransformedHeight(this, transformationSpec)
                             .fillMaxWidth().padding(horizontal = 8.dp),

@@ -41,13 +41,16 @@ fun generateWearColorSchemeFromSeed(seedColorInt: Int, fallbackColor: ColorSchem
         ColorScheme(
             primary = Color(dynamicScheme.primary),
             onPrimary = Color(dynamicScheme.onPrimary),
+            primaryDim = Color(dynamicScheme.primaryFixedDim),
             primaryContainer = Color(dynamicScheme.primaryContainer),
             onPrimaryContainer = Color(dynamicScheme.onPrimaryContainer),
             secondary = Color(dynamicScheme.secondary),
+            secondaryDim = Color(dynamicScheme.secondaryFixedDim),
             onSecondary = Color(dynamicScheme.onSecondary),
             secondaryContainer = Color(dynamicScheme.secondaryContainer),
             onSecondaryContainer = Color(dynamicScheme.onSecondaryContainer),
             tertiary = Color(dynamicScheme.tertiary),
+            tertiaryDim = Color(dynamicScheme.tertiaryFixedDim),
             onTertiary = Color(dynamicScheme.onTertiary),
             tertiaryContainer = Color(dynamicScheme.tertiaryContainer),
             onTertiaryContainer = Color(dynamicScheme.onTertiaryContainer),
@@ -60,7 +63,6 @@ fun generateWearColorSchemeFromSeed(seedColorInt: Int, fallbackColor: ColorSchem
             surfaceContainerHigh = Color(dynamicScheme.surfaceContainerHigh),
             error = Color(dynamicScheme.error),
             onError = Color(dynamicScheme.onError)
-
         )
     } catch (e: Exception) {
         fallbackColor

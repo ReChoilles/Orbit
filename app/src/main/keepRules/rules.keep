@@ -1,7 +1,3 @@
-# ijkplayer
--keep class tv.danmaku.ijk.media.player.** { *; }
--dontwarn tv.danmaku.ijk.media.player.**
-
 # DanmakuFlameMaster + JNI
 -keep class io.github.ynotbili.dfmnext.** { *; }
 -keep class master.flame.danmaku.** { *; }
@@ -34,3 +30,7 @@
 -keepclassmembers,allowobfuscation interface com.qx.orbit.bili.data.api.BiliApiService {
     @retrofit2.http.* <methods>;
 }
+
+# Media3 / ExoPlayer
+-keep class androidx.media3.** { *; }
+-dontwarn androidx.media3.**

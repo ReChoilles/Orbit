@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.runtime.Composable
+import com.qx.orbit.bili.BuildConfig
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -112,7 +113,7 @@ fun AboutScreen(navController: NavController) {
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(text = stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.W700)
-                    Text(text = stringResource(R.string.app_version), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                    Text(text = BuildConfig.VERSION_NAME, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
                     Text(
                         text = Build.MODEL,
                         style = MaterialTheme.typography.labelSmall,

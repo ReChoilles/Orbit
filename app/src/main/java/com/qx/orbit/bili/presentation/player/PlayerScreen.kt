@@ -1,13 +1,13 @@
 package com.qx.orbit.bili.presentation.player
 
 import android.annotation.SuppressLint
-import android.content.Context
-import android.content.pm.ActivityInfo
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.graphics.SurfaceTexture
 import android.media.AudioManager
 import android.media.MediaMetadata
@@ -20,8 +20,6 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.TextureView
 import android.widget.FrameLayout
-import coil.imageLoader
-import coil.compose.AsyncImage
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -35,15 +33,11 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
-import androidx.wear.compose.foundation.lazy.itemsIndexed
-import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
-import androidx.wear.compose.material3.ListHeader
-import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -58,15 +52,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.filled.ScreenRotationAlt
+import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.key
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -76,14 +78,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -97,14 +106,31 @@ import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.wear.compose.material.dialog.Dialog
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import androidx.wear.compose.foundation.lazy.itemsIndexed
+import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
+import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.ButtonGroup
 import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.wear.compose.material3.Dialog
+import androidx.wear.compose.material3.FilledIconButton
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.IconButton
+import androidx.wear.compose.material3.IconButtonDefaults
+import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.lazy.rememberTransformationSpec
+import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.google.android.horologist.annotations.ExperimentalHorologistApi
 import com.google.android.horologist.audio.ui.material3.VolumeScreen
+import com.google.android.horologist.media.ui.state.model.TrackPositionUiModel
 import com.qx.orbit.bili.R
 import com.qx.orbit.bili.data.api.CookiesApi
 import com.qx.orbit.bili.data.api.DanmakuApi
@@ -113,41 +139,39 @@ import com.qx.orbit.bili.data.api.HistoryApi
 import com.qx.orbit.bili.data.api.LiveApi
 import com.qx.orbit.bili.data.api.PlayerApi
 import com.qx.orbit.bili.data.model.PlayerData
-import com.qx.orbit.bili.data.model.Subtitle
 import com.qx.orbit.bili.data.remote.CookieManager
+import com.qx.orbit.bili.presentation.theme.LocalScreenRound
+import com.qx.orbit.bili.presentation.theme.extractSeedColorFromBitmap
+import com.qx.orbit.bili.presentation.theme.generateWearColorSchemeFromSeed
 import com.qx.orbit.bili.presentation.ui.components.RoundToast
-import com.qx.orbit.bili.presentation.ui.components.findActivity
-import com.qx.orbit.bili.presentation.viewmodel.EmoteInline
-import com.qx.orbit.bili.service.PlayerForegroundService
 import com.qx.orbit.bili.presentation.ui.components.WysAlertDialog
+import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
+import com.qx.orbit.bili.presentation.ui.components.findActivity
+import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
+import com.qx.orbit.bili.presentation.viewmodel.EmoteInline
+import com.qx.orbit.bili.presentation.viewmodel.PlayerViewModel
+import com.qx.orbit.bili.service.PlayerForegroundService
 import com.qx.orbit.bili.util.SharedPreferencesUtil
 import com.qx.orbit.bili.util.TextureViewProbe
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import com.qx.orbit.bili.util.danmaku.base.DanmakuConfig
-import com.qx.orbit.bili.util.danmaku.base.DanmakuPlayer
-import com.qx.orbit.bili.util.danmaku.base.ProtobufDanmakuParser
 import com.qx.orbit.bili.util.danmaku.base.createDanmaku
 import com.qx.orbit.bili.util.danmaku.base.createDanmakuConfig
 import com.qx.orbit.bili.util.danmaku.base.createDanmakuPlayer
 import com.qx.orbit.bili.util.danmaku.base.createEmptyParser
 import com.qx.orbit.bili.util.danmaku.base.createProtobufParser
 import com.qx.orbit.bili.util.danmaku.base.createXmlParser
+import com.qx.orbit.bili.util.player.OrbitPlayer
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
-import tv.danmaku.ijk.media.player.IjkMediaPlayer
 import java.io.File
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
-import androidx.wear.compose.material3.SurfaceTransformation
-import com.qx.orbit.bili.presentation.theme.LocalScreenRound
-import coil.request.ImageRequest
-import com.qx.orbit.bili.data.model.SubtitleLink
-import coil.request.SuccessResult
-import androidx.compose.ui.layout.ContentScale
 
 @Suppress("unused")
 @OptIn(ExperimentalHorologistApi::class, DelicateCoroutinesApi::class)
@@ -156,88 +180,115 @@ import androidx.compose.ui.layout.ContentScale
 fun PlayerScreen(
     initialData: PlayerData,
     onBack: () -> Unit,
-    onDisposeAction: (epid: Long, progress: Long) -> Unit = { _, _ -> }
+    onDisposeAction: (epid: Long, progress: Long) -> Unit = { _, _ -> },
+    viewModel: PlayerViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    viewModel.initPlayer(context)
+    viewModel.setData(initialData)
     var backPressedTime by remember { mutableLongStateOf(0L) }
     var isExiting by remember { mutableStateOf(false) }
-    
+    var isAudioOnlyMode by remember { mutableStateOf(false) }
+
     BackHandler {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - backPressedTime < 2000) {
+        val isAudioPlayer = isAudioOnlyMode || initialData.audioUrl == "audio"
+        if (isAudioPlayer) {
             isExiting = true
             onBack()
         } else {
-            backPressedTime = currentTime
-            RoundToast.show(context, "再按一次返回键退出")
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - backPressedTime < 2000) {
+                isExiting = true
+                onBack()
+            } else {
+                backPressedTime = currentTime
+                RoundToast.show(context, "再按一次返回键退出")
+            }
         }
     }
     val scope = rememberCoroutineScope()
     
     var playerData by remember { mutableStateOf(initialData) }
+    val vmPlayerData by viewModel.playerData.collectAsState()
+    // Sync ViewModel playerData back to local when episodes switch
+    LaunchedEffect(vmPlayerData) {
+        if (vmPlayerData != initialData && vmPlayerData.aid != 0L) {
+            playerData = vmPlayerData
+        }
+    }
     val isLive = playerData.type == PlayerData.TYPE_LIVE
     val isLocal = playerData.type == PlayerData.TYPE_LOCAL
     var showDanmaku by remember { mutableStateOf(SharedPreferencesUtil.getBoolean("player_danmaku_default_show", true)) }
-    var isPlaying by remember { mutableStateOf(false) }
+    val isPlaying by viewModel.isPlaying.collectAsState()
     
     val leftTopBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_left", 2)) }
     val leftBottomBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_left_bottom", 0)) }
     val rightTopBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_right", 1)) }
     val rightBottomBtnAction by remember { mutableIntStateOf(SharedPreferencesUtil.getInt("player_custom_btn_right_bottom", 0)) }
     
-    var subtitleLinks by remember { mutableStateOf(emptyArray<SubtitleLink>()) }
+    val subtitleLinks by viewModel.subtitleLinks.collectAsState()
     var showSubtitleDialog by remember { mutableStateOf(false) }
     
     var showVolumeScreen by remember { mutableStateOf(false) }
+    var showMoreDialog by remember { mutableStateOf(false) }
     val volumeFocusRequester = remember { FocusRequester() }
 
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     
     val isAutoLandscape = remember { SharedPreferencesUtil.getBoolean("player_autolandscape", false) }
+    val isSoftRotate = remember { SharedPreferencesUtil.getBoolean("player_softrotate", false) }
+    var softRotateDegrees by remember { mutableFloatStateOf(SharedPreferencesUtil.getFloat("player_softrotate_deg", 0f)) }
     val isRound = LocalScreenRound.current
-    DisposableEffect(isAutoLandscape) {
+    DisposableEffect(isAutoLandscape, isSoftRotate) {
         val activity = context.findActivity()
-        val originalOrientation = activity?.requestedOrientation
-        if (isAutoLandscape && activity != null) {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        val originalOrientation = try { activity?.requestedOrientation } catch (_: Exception) { null }
+        // Only use system landscape if auto-landscape is on AND software rotation is off
+        if (isAutoLandscape && !isSoftRotate && activity != null) {
+            try {
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            } catch (_: Exception) {
+                // Device may not support landscape (e.g. round watches)
+            }
+        }
+        // If software rotation + auto-landscape, default to 90°
+        if (isAutoLandscape && isSoftRotate && softRotateDegrees == 0f) {
+            softRotateDegrees = 90f
         }
         onDispose {
-            if (isAutoLandscape && activity != null && originalOrientation != null) {
-                activity.requestedOrientation = originalOrientation
+            if (isAutoLandscape && !isSoftRotate && activity != null && originalOrientation != null) {
+                try {
+                    activity.requestedOrientation = originalOrientation
+                } catch (_: Exception) {}
             }
         }
     }
 
-    var isPrepared by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isAudioOnlyMode by remember { mutableStateOf(false) }
-    var switchPendingSeekMs by remember { mutableLongStateOf(-1L) }
+    val isPrepared by viewModel.isPrepared.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     var showControls by remember { mutableStateOf(true) }
     var interactionCounter by remember { mutableIntStateOf(0) }
-    var currentProgress by remember { mutableLongStateOf(0L) }
-    var totalDuration by remember { mutableLongStateOf(0L) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var bufferSpeed by remember { mutableStateOf("") }
-    var subtitles by remember { mutableStateOf(emptyArray<Subtitle>()) }
-    var currentSubtitleId by remember { mutableLongStateOf(0L) }
-    var currentSubtitle by remember { mutableStateOf<String?>(null) }
-    
+    var currentProgress by remember { mutableLongStateOf(viewModel.currentProgress.value) }
+    val vmCurrentProgress by viewModel.currentProgress.collectAsState()
+    val totalDuration by viewModel.totalDuration.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val bufferSpeed by viewModel.bufferSpeed.collectAsState()
+    val subtitles by viewModel.subtitles.collectAsState()
+    val currentSubtitleId by viewModel.currentSubtitleId.collectAsState()
+    val currentSubtitle by viewModel.currentSubtitle.collectAsState()
+    val videoWidth by viewModel.videoWidth.collectAsState()
+    val videoHeight by viewModel.videoHeight.collectAsState()
+
     var dragProgress by remember { mutableFloatStateOf(-1f) }
-    var isLongPressSpeedUp by remember { mutableStateOf(false) }
+    val isLongPressSpeedUp by viewModel.isLongPressSpeedUp.collectAsState()
     var longPressUpTimestamp by remember { mutableLongStateOf(0L) }
-    var playbackSpeed by remember { mutableFloatStateOf(1.0f) }
-    var liveElapsedSeconds by remember { mutableLongStateOf(0L) }
+    val playbackSpeed by viewModel.playbackSpeed.collectAsState()
+    val liveElapsedSeconds by viewModel.liveElapsedSeconds.collectAsState()
 
     LaunchedEffect(isLive, playerData.timeStamp) {
-        if (isLive && playerData.timeStamp > 0) {
-            while (true) {
-                liveElapsedSeconds = (System.currentTimeMillis() / 1000) - playerData.timeStamp
-                delay(1.seconds)
-            }
-        }
+        if (isLive) viewModel.startLiveElapsedTimer(playerData.timeStamp)
     }
 
-    val mediaPlayer = remember { IjkMediaPlayer() }
+    val mediaPlayer = viewModel.player
     val danmakuPlayer = remember { createDanmakuPlayer(context) }
     var danmakuConfig by remember { mutableStateOf<DanmakuConfig?>(null) }
 
@@ -261,21 +312,18 @@ fun PlayerScreen(
     DisposableEffect(Unit) {
         val callback = object : MediaSession.Callback() {
             override fun onPlay() {
-                mediaPlayer.start()
+                viewModel.play()
                 danmakuPlayer.resume()
-                isPlaying = true
             }
 
             override fun onPause() {
-                mediaPlayer.pause()
+                viewModel.pause()
                 danmakuPlayer.pause()
-                isPlaying = false
             }
 
             override fun onSeekTo(pos: Long) {
-                mediaPlayer.seekTo(pos)
+                viewModel.seekTo(pos)
                 danmakuPlayer.seekTo(pos)
-                currentProgress = pos
             }
             
             override fun onSkipToNext() {
@@ -293,6 +341,7 @@ fun PlayerScreen(
                         title = nextTitle,
                         progress = 0
                     )
+                    viewModel.setData(playerData)
                 }
             }
             
@@ -311,6 +360,7 @@ fun PlayerScreen(
                         title = prevTitle,
                         progress = 0
                     )
+                    viewModel.setData(playerData)
                 }
             }
         }
@@ -345,7 +395,7 @@ fun PlayerScreen(
             if (playerData.cover.isNotEmpty()) {
                 try {
                     val request = ImageRequest.Builder(context)
-                        .data(playerData.cover)
+                        .data(playerData.cover.replace("http://", "https://"))
                         .size(512)
                         .build()
                     val result = context.imageLoader.execute(request)
@@ -442,8 +492,6 @@ fun PlayerScreen(
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
 
-    var videoWidth by remember { mutableFloatStateOf(16f) }
-    var videoHeight by remember { mutableFloatStateOf(9f) }
     val useTextureView = remember { SharedPreferencesUtil.getBoolean("player_texture_view", true) }
     val effectiveUseTexture = useTextureView && isTextureViewOk.intValue != -1
 
@@ -464,66 +512,25 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(isPlaying, isPrepared) {
+    LaunchedEffect(isPlaying, isPrepared, vmCurrentProgress) {
         if (isPrepared) {
-            if (isPlaying) danmakuPlayer.resume() else danmakuPlayer.pause()
-        }
-        var heartbeatTick = 0
-        while(isPlaying && isPrepared) {
-            currentProgress = mediaPlayer.currentPosition
-
-            if (subtitles.isNotEmpty()) {
-                val timeSec = currentProgress / 1000.0
-                val matched = subtitles.find { timeSec >= it.from && timeSec < it.to }
-                currentSubtitle = matched?.content
-            }
-
-            if (heartbeatTick >= 15) {
-                heartbeatTick = 0
-                val pos = currentProgress / 1000
-                if (pos > 0 && playerData.type != PlayerData.TYPE_LOCAL && !isLive) {
-                    try {
-                        val isBangumi = playerData.type == PlayerData.TYPE_BANGUMI && playerData.epid > 0
-                        if (!isBangumi) {
-                            HistoryApi.reportHistory(playerData.aid, playerData.cid, pos)
-                        }
-                        HeartbeatApi.reportHeartbeat(
-                            aid = playerData.aid,
-                            bvid = playerData.bvid,
-                            cid = playerData.cid,
-                            playedTime = pos,
-                            type = if (isBangumi) "4" else "3",
-                            subType = if (isBangumi) "1" else null,
-                            epid = if (isBangumi) playerData.epid else null,
-                            sid = if (isBangumi) playerData.sid else null,
-                            videoDuration = (totalDuration / 1000).coerceAtLeast(0)
-                        )
-                    } catch (_: Exception) {}
+            if (isPlaying) {
+                danmakuPlayer.resume()
+                while (isActive) {
+                    androidx.compose.runtime.withFrameMillis { }
+                    currentProgress = viewModel.player.currentPosition
+                    viewModel.updateCurrentSubtitle(currentProgress)
                 }
+            } else {
+                danmakuPlayer.pause()
+                currentProgress = viewModel.player.currentPosition
             }
-            heartbeatTick++
-            
-            delay(1.seconds)
         }
     }
 
     LaunchedEffect(isLoading) {
         if (isLoading) {
-            while (isLoading) {
-                val speedBytes = mediaPlayer.tcpSpeed
-                bufferSpeed = if (speedBytes > 0) {
-                    when {
-                        speedBytes >= 1024 * 1024 -> String.format("%.1f MB/s", speedBytes / (1024f * 1024f))
-                        speedBytes >= 1024 -> String.format("%.1f KB/s", speedBytes / 1024f)
-                        else -> "$speedBytes B/s"
-                    }
-                } else {
-                    if (!isPrepared) "加载中..." else "缓冲中..."
-                }
-                delay(1.seconds)
-            }
-        } else {
-            bufferSpeed = ""
+            viewModel.startBufferSpeedLoop()
         }
     }
 
@@ -531,8 +538,20 @@ fun PlayerScreen(
         if (showDanmaku) danmakuPlayer.show() else danmakuPlayer.hide()
     }
 
-    LaunchedEffect(if (isLive) playerData.aid else if (isLocal) playerData.videoUrl else playerData.cid, isAudioOnlyMode) {
-        isLoading = true
+    // Track what was last loaded to prevent unnecessary reloads
+    var lastLoadId by remember { mutableStateOf<Pair<Any?, Boolean>?>(null) }
+    val currentVideoKey = if (isLive) playerData.aid else if (isLocal) playerData.videoUrl else playerData.cid
+
+    LaunchedEffect(currentVideoKey, isAudioOnlyMode) {
+        val loadId = Pair(currentVideoKey, isAudioOnlyMode)
+        // Skip reload only when the exact same loadId was already prepared
+        // This allows network video to reload when audio-only mode changes (video ↔ audio stream)
+        if (isPrepared && lastLoadId == loadId) {
+            viewModel.setLoading(false)
+            return@LaunchedEffect
+        }
+        viewModel.setLoading(true)
+        lastLoadId = loadId
         try {
             if (!isLocal && !CookieManager.getCookie().contains("buvid3")) {
                 CookiesApi.checkCookies()
@@ -626,32 +645,20 @@ fun PlayerScreen(
                 scope.launch {
                     try {
                         if (isLocal) {
-                            var subFile = File("${playerData.videoUrl}.srt")
-                            if (!subFile.exists()) {
-                                val fallbackPath = playerData.videoUrl.replace(".mp4", ".srt").replace(".m4s", ".srt")
-                                subFile = File(fallbackPath.toUri().path ?: "")
-                            }
-                            if (subFile.exists() && SharedPreferencesUtil.getBoolean("player_subtitle_default_show", false)) {
-                                val json = subFile.readText()
-                                val jsonObj = com.google.gson.Gson().fromJson(json, Map::class.java)
-                                val body = (jsonObj?.get("body") as? List<*>)?.mapNotNull { entry ->
-                                    val m = entry as? Map<*, *> ?: return@mapNotNull null
-                                    Subtitle(
-                                        content = m["content"]?.toString() ?: "",
-                                        from = (m["from"] as? Number)?.toDouble() ?: 0.0,
-                                        to = (m["to"] as? Number)?.toDouble() ?: 0.0
-                                    )
-                                }?.toTypedArray() ?: emptyArray()
-                                subtitles = body
-                                currentSubtitleId = -1L
+                            val links = viewModel.discoverLocalSubtitles(playerData.videoUrl)
+                            viewModel.setSubtitleLinks(links)
+                            if (links.isNotEmpty() && SharedPreferencesUtil.getBoolean("player_subtitle_default_show", false)) {
+                                val defaultLink = links.firstOrNull { !it.isAI } ?: links.first()
+                                viewModel.setSubtitles(viewModel.loadSubtitleFromPath(defaultLink.url))
+                                viewModel.setCurrentSubtitleId(defaultLink.id)
                             }
                         } else {
                             val links = PlayerApi.getSubtitleLinks(playerData.aid, playerData.cid)
-                            subtitleLinks = links
+                            viewModel.setSubtitleLinks(links)
                             if (links.isNotEmpty() && SharedPreferencesUtil.getBoolean("player_subtitle_default_show", false)) {
                                 val idx = links.indexOfFirst { !it.isAI }.coerceAtLeast(0)
-                                subtitles = PlayerApi.getSubtitle(links[idx].url)
-                                currentSubtitleId = links[idx].id
+                                viewModel.setSubtitles(PlayerApi.getSubtitle(links[idx].url))
+                                viewModel.setCurrentSubtitleId(links[idx].id)
                             }
                         }
                     } catch (_: Exception) {}
@@ -667,22 +674,23 @@ fun PlayerScreen(
             if (!isLive && !isLocal) playerData = result
             if (result.videoUrl.isNotEmpty() || result.audioUrl.isNotEmpty()) {
                 mediaPlayer.reset()
-                mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", 1)
-                mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "allowed_extensions", "ALL")
-                mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "protocol_whitelist", "file,http,https,tcp,tls,crypto")
+                mediaPlayer.setDashData(result.dashData, result.videoUrl, result.audioUrl)
+                mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", 1)
+                mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_FORMAT, "allowed_extensions", "ALL")
+                mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_FORMAT, "protocol_whitelist", "file,http,https,tcp,tls,crypto")
                 if (!isLocal) {
-                    mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.95 Safari/537.36")
-                    mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "headers", "Referer: https://www.bilibili.com")
-                    mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "reconnect", 1)
-                    mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "reconnect_at_eof", 1)
-                    mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "reconnect_streamed", 1)
-                    mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "reconnect_delay_max", 2)
-                    mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "dns_cache_clear", 1)
+                    mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_FORMAT, "user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.95 Safari/537.36")
+                    mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_FORMAT, "headers", "Referer: https://www.bilibili.com")
+                    mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_FORMAT, "reconnect", 1)
+                    mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_FORMAT, "reconnect_at_eof", 1)
+                    mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_FORMAT, "reconnect_streamed", 1)
+                    mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_FORMAT, "reconnect_delay_max", 2)
+                    mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_FORMAT, "dns_cache_clear", 1)
                 }
                 if (isLive) {
-                    mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "live直播延时", 1)
-                    mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", 0)
-                    mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", 1)
+                    mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_FORMAT, "live直播延时", 1)
+                    mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", 0)
+                    mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_PLAYER, "infbuf", 1)
                 }
                 val playUrl = if (!isLocal && isAudioOnlyMode && result.audioUrl.isNotEmpty()) result.audioUrl else result.videoUrl
                 mediaPlayer.dataSource = playUrl
@@ -696,114 +704,62 @@ fun PlayerScreen(
                     }
                 }
                 if (SharedPreferencesUtil.getBoolean("player_loop", false)) {
-                    mediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "loop", 1)
+                    mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_PLAYER, "loop", 1)
                 }
                 mediaPlayer.prepareAsync()
+                var hasPrepared = false
                 mediaPlayer.setOnPreparedListener {
-                    isPrepared = true
-                    isLoading = false
-                    totalDuration = it.duration
-                    
-                    if (switchPendingSeekMs >= 0) {
-                        it.seekTo(switchPendingSeekMs)
-                        currentProgress = switchPendingSeekMs
-                        switchPendingSeekMs = -1L
-                    } else if (playerData.progress > 0) {
-                        val targetMs = (playerData.progress * 1000L).coerceAtMost(it.duration)
-                        it.seekTo(targetMs)
-                        currentProgress = targetMs
-                        playerData = playerData.copy(progress = 0)
+                    if (hasPrepared) return@setOnPreparedListener
+                    hasPrepared = true
+                    val startDanmakuPlayback = {
+                        viewModel.onPrepared()
+                        if (!isAudioOnlyMode && playerData.audioUrl != "audio") {
+                            val targetPos = viewModel.currentProgress.value
+                            danmakuPlayer.start(targetPos)
+                        }
                     }
-                    
-                    it.start()
-                    isPlaying = true
-                    danmakuPlayer.start()
-                    if (currentProgress > 0) {
-                        danmakuPlayer.seekTo(currentProgress)
-                    }
-                    
-                    if (!isLive && playerData.type != PlayerData.TYPE_LOCAL) {
-                        // Report heartbeat on start
-                        scope.launch {
-                            try {
-                                val isBangumi = playerData.type == PlayerData.TYPE_BANGUMI && playerData.epid > 0
-                                HeartbeatApi.reportHeartbeat(
-                                    aid = playerData.aid,
-                                    bvid = playerData.bvid,
-                                    cid = playerData.cid,
-                                    playedTime = playerData.progress.toLong().coerceAtLeast(0),
-                                    type = if (isBangumi) "4" else "3",
-                                    subType = if (isBangumi) "1" else null,
-                                    epid = if (isBangumi) playerData.epid else null,
-                                    sid = if (isBangumi) playerData.sid else null,
-                                    videoDuration = (totalDuration / 1000).coerceAtLeast(0)
-                                )
-                            } catch (e: Exception) {}
+                    if (isAudioOnlyMode || playerData.audioUrl == "audio") {
+                        startDanmakuPlayback()
+                    } else if (danmakuPlayer.isReady()) {
+                        // Danmaku already loaded, start immediately
+                        startDanmakuPlayback()
+                    } else {
+                        // Keep loading indicator visible, wait for danmaku to be ready
+                        // Video is buffered but not playing yet - user sees loading spinner
+                        danmakuPlayer.setOnReadyListener {
+                            danmakuPlayer.setOnReadyListener(null)
+                            startDanmakuPlayback()
                         }
                     }
                 }
                 mediaPlayer.setOnCompletionListener {
-                    scope.launch {
-                        val isBangumi = playerData.type == PlayerData.TYPE_BANGUMI && playerData.epid > 0
-                        if (isBangumi) {
-                            HeartbeatApi.reportHeartbeat(
-                                aid = playerData.aid, bvid = playerData.bvid, cid = playerData.cid, playedTime = -1, type = "4", subType = "1", epid = playerData.epid, sid = playerData.sid, videoDuration = (totalDuration / 1000).coerceAtLeast(0)
-                            )
-                        } else {
-                            HistoryApi.reportHistory(playerData.aid, playerData.cid, -1)
-                        }
-                        
-                        if (playerData.currentPageIndex + 1 < playerData.cids.size) {
-                            val nextIndex = playerData.currentPageIndex + 1
-                            val nextAid = if (playerData.aids.size > nextIndex) playerData.aids[nextIndex] else playerData.aid
-                            val nextCid = playerData.cids[nextIndex]
-                            val nextEpid = if (playerData.epids.size > nextIndex) playerData.epids[nextIndex] else playerData.epid
-                            val nextTitle = if (playerData.pagenames.size > nextIndex) playerData.pagenames[nextIndex] else playerData.title
-                            playerData = playerData.copy(
-                                currentPageIndex = nextIndex,
-                                aid = nextAid,
-                                cid = nextCid,
-                                epid = nextEpid,
-                                title = nextTitle,
-                                progress = 0
-                            )
-                        } else {
-                            isPlaying = false
-                        }
-                    }
+                    viewModel.onCompletion()
                 }
                 mediaPlayer.setOnVideoSizeChangedListener { _, width, height, _, _ ->
-                    if (width > 0 && height > 0) {
-                        videoWidth = width.toFloat()
-                        videoHeight = height.toFloat()
-                    }
+                    viewModel.onVideoSizeChanged(width, height)
                 }
                 mediaPlayer.setOnErrorListener { _, what, extra ->
-                    errorMessage = "播放器错误: $what"
+                    // Suppress non-fatal errors during background audio playback (DASH segment read failures)
+                    if (!isAudioOnlyMode) {
+                        viewModel.onError(what, extra)
+                    }
                     true
                 }
                 mediaPlayer.setOnInfoListener { _, what, _ ->
+                    viewModel.onInfo(what, 0)
                     when (what) {
-                        IjkMediaPlayer.MEDIA_INFO_BUFFERING_START -> {
-                            danmakuPlayer.pause()
-                            isLoading = true
-                        }
-                        IjkMediaPlayer.MEDIA_INFO_BUFFERING_END -> {
-                            if (isPlaying) {
-                                danmakuPlayer.resume()
-                            }
-                            isLoading = false
-                        }
+                        OrbitPlayer.MEDIA_INFO_BUFFERING_START -> danmakuPlayer.pause()
+                        OrbitPlayer.MEDIA_INFO_BUFFERING_END -> if (viewModel.isPlaying.value) danmakuPlayer.resume()
                     }
                     true
                 }
             } else {
-                errorMessage = "无法获取视频地址"
-                isLoading = false
+                viewModel.setError("无法获取视频地址")
+                viewModel.setLoading(false)
             }
         } catch (e: Exception) {
-            errorMessage = "网络请求失败"
-            isLoading = false
+            viewModel.setError("网络请求失败")
+            viewModel.setLoading(false)
         }
     }
 
@@ -880,10 +836,10 @@ fun PlayerScreen(
 
     LaunchedEffect(isLongPressSpeedUp, playbackSpeed) {
         if (isLongPressSpeedUp) {
-            try { mediaPlayer.setSpeed(2.0f) } catch(e:Exception){}
+            viewModel.setLongPressSpeedUp(true)
             try { danmakuPlayer.setSpeed(2.0f) } catch(e:Exception){}
         } else {
-            try { mediaPlayer.setSpeed(playbackSpeed) } catch(e:Exception){}
+            viewModel.setLongPressSpeedUp(false)
             try { danmakuPlayer.setSpeed(playbackSpeed) } catch(e:Exception){}
         }
     }
@@ -898,25 +854,20 @@ fun PlayerScreen(
                 if (!isExiting && SharedPreferencesUtil.getBoolean("player_background", false)) {
                     val audioOnly = SharedPreferencesUtil.getBoolean("player_background_audio_only", false)
                     if (audioOnly && !isLive && !isLocal) {
-                        try {
-                            switchPendingSeekMs = mediaPlayer.currentPosition
-                        } catch (e: Exception) {}
+                        viewModel.pendingSeekTo(viewModel.savePosition())
                         isAudioOnlyMode = true
                     } else {
                         mediaPlayer.setSurface(null)
                     }
                 } else {
                     if (isPlaying) {
-                        mediaPlayer.pause()
+                        viewModel.pause()
                         danmakuPlayer.pause()
-                        isPlaying = false
                     }
                 }
             } else if (event == Lifecycle.Event.ON_START) {
                 if (isAudioOnlyMode) {
-                    try {
-                        switchPendingSeekMs = mediaPlayer.currentPosition
-                    } catch (e: Exception) {}
+                    viewModel.pendingSeekTo(viewModel.savePosition())
                     isAudioOnlyMode = false
                 } else {
                     if (effectiveUseTexture) {
@@ -940,10 +891,7 @@ fun PlayerScreen(
             view.keepScreenOn = false
 
             if (!isLive && playerData.type != PlayerData.TYPE_LOCAL) {
-                var currentPosSeconds = 0L
-                try {
-                    currentPosSeconds = mediaPlayer.currentPosition / 1000
-                } catch (e: Exception) {}
+                val currentPosSeconds = currentProgress / 1000
                 
                 onDisposeAction(playerData.epid, currentPosSeconds)
 
@@ -971,67 +919,53 @@ fun PlayerScreen(
 
             liveWebSocket?.close(1000, "bye")
             liveWebSocket = null
-            mediaPlayer.release()
+            viewModel.release()
             danmakuPlayer.release()
         }
     }
 
+    if (isAudioOnlyMode || playerData.audioUrl == "audio") {
+        AudioPlayerScreen(
+            viewModel = viewModel,
+            playerData = playerData,
+            mediaPlayer = mediaPlayer,
+            audioManager = audioManager,
+            isPlaying = isPlaying,
+            currentProgress = currentProgress,
+            totalDuration = totalDuration,
+            currentSubtitle = currentSubtitle,
+            currentSubtitleId = currentSubtitleId,
+            playbackSpeed = playbackSpeed,
+            subtitleLinks = subtitleLinks,
+            onBack = { isExiting = true; onBack() }
+        )
+        return
+    }
+
+    // Cumulative angle for smooth clockwise-only animation (avoids 270°→0° going backwards)
+    var cumulativeRotation by remember { mutableFloatStateOf(SharedPreferencesUtil.getFloat("player_softrotate_deg", 0f)) }
+    val animatedRotation by animateFloatAsState(
+        targetValue = cumulativeRotation,
+        animationSpec = tween(durationMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "rotation"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    if (SharedPreferencesUtil.getBoolean("player_scale", true)) {
-                        scale = (scale * zoom).coerceIn(1f, 5f)
-                        if (scale > 1f) {
-                            val allowMove = SharedPreferencesUtil.getBoolean("player_doublemove", true)
-                            if (allowMove || zoom == 1f) {
-                                val maxX = (size.width * (scale - 1)) / 2
-                                val maxY = (size.height * (scale - 1)) / 2
-                                offsetX = (offsetX + pan.x * scale).coerceIn(-maxX, maxX)
-                                offsetY = (offsetY + pan.y * scale).coerceIn(-maxY, maxY)
-                            }
-                        } else {
-                            offsetX = 0f
-                            offsetY = 0f
-                        }
-                    }
-                }
+            .graphicsLayer {
+                rotationZ = animatedRotation
             }
+            .background(Color.Black)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = {
                         if (isPlaying) {
-                            mediaPlayer.pause()
+                            viewModel.pause()
                             danmakuPlayer.pause()
-                            isPlaying = false
-                            // Report progress on pause
-                            scope.launch {
-                                if (playerData.type == PlayerData.TYPE_LOCAL || isLive) return@launch
-                                try {
-                                    val pos = mediaPlayer.currentPosition / 1000
-                                    val isBangumi = playerData.type == PlayerData.TYPE_BANGUMI && playerData.epid > 0
-                                    if (!isBangumi) {
-                                        HistoryApi.reportHistory(playerData.aid, playerData.cid, pos)
-                                    }
-                                    HeartbeatApi.reportHeartbeat(
-                                        aid = playerData.aid,
-                                        bvid = playerData.bvid,
-                                        cid = playerData.cid,
-                                        playedTime = pos,
-                                        type = if (isBangumi) "4" else "3",
-                                        subType = if (isBangumi) "1" else null,
-                                        epid = if (isBangumi) playerData.epid else null,
-                                        sid = if (isBangumi) playerData.sid else null,
-                                        videoDuration = (totalDuration / 1000).coerceAtLeast(0)
-                                    )
-                                } catch (_: Exception) {}
-                            }
                         } else {
-                            mediaPlayer.start()
+                            viewModel.play()
                             danmakuPlayer.resume()
-                            isPlaying = true
                         }
                         interactionCounter++
                     }
@@ -1054,7 +988,7 @@ fun PlayerScreen(
                             // Ghost pointer from system edge swipe, ignore it
                         } else {
                             wasLongPress = true
-                            if (isPlaying && !showControls && !isLive && SharedPreferencesUtil.getBoolean("player_longclick", true)) isLongPressSpeedUp = true
+                            if (isPlaying && !showControls && !isLive && SharedPreferencesUtil.getBoolean("player_longclick", true)) viewModel.setLongPressSpeedUp(true)
                             try {
                                 while (true) {
                                     val event = awaitPointerEvent(PointerEventPass.Main)
@@ -1063,7 +997,7 @@ fun PlayerScreen(
                                     }
                                 }
                             } finally {
-                                isLongPressSpeedUp = false
+                                viewModel.setLongPressSpeedUp(false)
                             }
                         }
                     } else {
@@ -1143,13 +1077,12 @@ fun PlayerScreen(
             .onRotaryScrollEvent {
                 if (isPrepared) {
                     val delta = it.verticalScrollPixels
-                    val newProgress = (mediaPlayer.currentPosition + delta * 100).toLong().coerceIn(0L, totalDuration)
-                    mediaPlayer.seekTo(newProgress)
+                    val newProgress = (currentProgress + delta * 100).toLong().coerceIn(0L, totalDuration)
+                    viewModel.seekTo(newProgress)
                     danmakuPlayer.seekTo(newProgress)
                     if (isPlaying) {
-                        mediaPlayer.start()
+                        viewModel.play()
                     }
-                    currentProgress = newProgress
                     interactionCounter++
                 }
                 true
@@ -1171,14 +1104,6 @@ fun PlayerScreen(
                 modifier = Modifier.fillMaxSize(if (isRound) 0.86524f else 1f),
                 contentAlignment = Alignment.Center
             ) {
-                if (isAudioOnlyMode || playerData.audioUrl == "audio") {
-                    AsyncImage(
-                        model = playerData.cover.replace("http://", "https://"),
-                        contentDescription = "Cover",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(0.65f).clip(RoundedCornerShape(16.dp))
-                    )
-                }
                 if (useTextureView && isTextureViewOk.intValue == 0) {
                     AndroidView(
                         factory = { ctx ->
@@ -1265,7 +1190,33 @@ fun PlayerScreen(
         // DanmakuView outside scaling container to prevent scaling with video
         AndroidView(
             factory = { danmakuPlayer.view },
-            modifier = Modifier.fillMaxSize()
+            modifier = if (isRound) { Modifier.fillMaxSize().padding(vertical = 16.dp) } else { Modifier.fillMaxSize() }
+        )
+
+        // Gesture overlay for pinch-to-zoom, placed above danmaku but below controls
+        // Isolated in its own Box because AndroidView interferes with Compose pointerInput
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        if (SharedPreferencesUtil.getBoolean("player_scale", true)) {
+                            scale = (scale * zoom).coerceIn(1f, 5f)
+                            if (scale > 1f) {
+                                val allowMove = SharedPreferencesUtil.getBoolean("player_doublemove", true)
+                                if (allowMove || zoom == 1f) {
+                                    val maxX = (size.width * (scale - 1)) / 2
+                                    val maxY = (size.height * (scale - 1)) / 2
+                                    offsetX = (offsetX + pan.x * scale).coerceIn(-maxX, maxX)
+                                    offsetY = (offsetY + pan.y * scale).coerceIn(-maxY, maxY)
+                                }
+                            } else {
+                                offsetX = 0f
+                                offsetY = 0f
+                            }
+                        }
+                    }
+                }
         )
 
         if (isLoading) {
@@ -1353,12 +1304,11 @@ fun PlayerScreen(
                                 onDragEnd = {
                                     if (dragProgress >= 0f) {
                                         val targetTime = (dragProgress * totalDuration).toLong()
-                                        mediaPlayer.seekTo(targetTime)
+                                        viewModel.seekTo(targetTime)
                                         danmakuPlayer.seekTo(targetTime)
-                                        currentProgress = targetTime
                                         dragProgress = -1f
                                         if (isPlaying) {
-                                            mediaPlayer.start()
+                                            viewModel.play()
                                             danmakuPlayer.resume()
                                         }
                                     }
@@ -1387,7 +1337,10 @@ fun PlayerScreen(
                         .align(Alignment.TopCenter)
                         .padding(top = 24.dp)
                         .padding(horizontal = 36.dp)
-                        .clickable {
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
                             isExiting = true
                             onBack()
                         }
@@ -1419,12 +1372,13 @@ fun PlayerScreen(
                                 if (!isLive) {
                                     IconButton(
                                         onClick = {
-                                            playbackSpeed = when (playbackSpeed) {
+                                            val newSpeed = when (playbackSpeed) {
                                                 1.0f -> 1.5f
                                                 1.5f -> 2.0f
                                                 2.0f -> 0.5f
                                                 else -> 1.0f
                                             }
+                                            viewModel.setSpeed(newSpeed)
                                         },
                                         modifier = modifier.size(36.dp)
                                     ) {
@@ -1469,6 +1423,50 @@ fun PlayerScreen(
                                     )
                                 }
                             }
+                            5 -> {
+                                IconButton(
+                                    onClick = {
+                                        if (isSoftRotate) {
+                                            val steps = SharedPreferencesUtil.getString("player_softrotate_steps", "0,90,180,270")
+                                                .split(",").mapNotNull { it.trim().toFloatOrNull() }
+                                            if (steps.size >= 2) {
+                                                val currentIdx = steps.indexOfFirst { it == softRotateDegrees }.coerceAtLeast(0)
+                                                val nextIdx = (currentIdx + 1) % steps.size
+                                                val nextDeg = steps[nextIdx]
+                                                if (steps.size == 2) {
+                                                    // 2 directions: animate "from where it came" (back and forth)
+                                                    cumulativeRotation = nextDeg
+                                                } else {
+                                                    // 3+ directions: always rotate clockwise (same direction)
+                                                    val delta = ((nextDeg - cumulativeRotation) % 360 + 360) % 360
+                                                    cumulativeRotation += if (delta == 0f) 360f else delta
+                                                }
+                                                softRotateDegrees = nextDeg
+                                                SharedPreferencesUtil.putFloat("player_softrotate_deg", softRotateDegrees)
+                                            }
+                                        } else {
+                                            val activity = context.findActivity()
+                                            if (activity != null) {
+                                                val current = activity.requestedOrientation
+                                                if (current == android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE ||
+                                                    current == android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
+                                                    activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                                } else {
+                                                    activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                                                }
+                                            }
+                                        }
+                                    },
+                                    modifier = modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ScreenRotation,
+                                        contentDescription = "Rotate Screen",
+                                        tint = Color.White.copy(alpha = 0.9f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -1486,34 +1484,11 @@ fun PlayerScreen(
                     IconButton(
                         onClick = {
                             if (isPlaying) {
-                                mediaPlayer.pause()
+                                viewModel.pause()
                                 danmakuPlayer.pause()
-                                isPlaying = false
-                                scope.launch {
-                                    if (playerData.type == PlayerData.TYPE_LOCAL || isLive) return@launch
-                                    try {
-                                        val pos = mediaPlayer.currentPosition / 1000
-                                        val isBangumi = playerData.type == PlayerData.TYPE_BANGUMI && playerData.epid > 0
-                                        if (!isBangumi) {
-                                            HistoryApi.reportHistory(playerData.aid, playerData.cid, pos)
-                                        }
-                                        HeartbeatApi.reportHeartbeat(
-                                            aid = playerData.aid,
-                                            bvid = playerData.bvid,
-                                            cid = playerData.cid,
-                                            playedTime = pos,
-                                            type = if (isBangumi) "4" else "3",
-                                            subType = if (isBangumi) "1" else null,
-                                            epid = if (isBangumi) playerData.epid else null,
-                                            sid = if (isBangumi) playerData.sid else null,
-                                            videoDuration = (totalDuration / 1000).coerceAtLeast(0)
-                                        )
-                                    } catch (_: Exception) {}
-                                }
                             } else {
-                                mediaPlayer.start()
+                                viewModel.play()
                                 danmakuPlayer.resume()
-                                isPlaying = true
                             }
                         },
                         modifier = Modifier.align(Alignment.Center).size(48.dp)
@@ -1590,7 +1565,7 @@ fun PlayerScreen(
         }
         
         Dialog(
-            showDialog = showVolumeScreen,
+            visible = showVolumeScreen,
             onDismissRequest = { showVolumeScreen = false }
         ) {
             Box(
@@ -1649,14 +1624,13 @@ fun PlayerScreen(
             )
         }
 
-        if (showSubtitleDialog) {
-            Dialog(
-                showDialog = showSubtitleDialog,
-                onDismissRequest = { showSubtitleDialog = false }
-            ) {
-                val listState = rememberTransformingLazyColumnState()
-                val transformationSpec = rememberTransformationSpec()
-    val isRound = LocalScreenRound.current
+        Dialog(
+            visible = showSubtitleDialog,
+            onDismissRequest = { showSubtitleDialog = false }
+        ) {
+            val listState = rememberTransformingLazyColumnState()
+            val transformationSpec = rememberTransformationSpec()
+            val isRound = LocalScreenRound.current
 
                 TransformingLazyColumn(
                     state = listState,
@@ -1672,13 +1646,13 @@ fun PlayerScreen(
                     
                     item {
                         val isSelected = currentSubtitleId == 0L
-                        androidx.wear.compose.material3.Button(
+                        Button(
                             onClick = {
-                                subtitles = emptyArray()
-                                currentSubtitleId = 0L
+                                viewModel.setSubtitles(emptyArray())
+                                viewModel.setCurrentSubtitleId(0L)
                                 showSubtitleDialog = false
                             },
-                            colors = if (isSelected) androidx.wear.compose.material3.ButtonDefaults.buttonColors() else androidx.wear.compose.material3.ButtonDefaults.filledTonalButtonColors(),
+                            colors = if (isSelected) ButtonDefaults.buttonColors() else ButtonDefaults.filledTonalButtonColors(),
                             icon = {
                                 if (isSelected) {
                                     Icon(Icons.Default.Check, contentDescription = null)
@@ -1693,19 +1667,25 @@ fun PlayerScreen(
 
                     itemsIndexed(subtitleLinks.toList()) { _, link ->
                         val isSelected = currentSubtitleId == link.id
-                        androidx.wear.compose.material3.Button(
+                        Button(
                             onClick = {
+                                if (link.url.isEmpty()) return@Button
                                 scope.launch {
                                     try {
-                                        subtitles = PlayerApi.getSubtitle(link.url)
-                                        currentSubtitleId = link.id
+                                        val subs = if (link.url.startsWith("/") && !link.url.startsWith("//")) {
+                                            viewModel.loadSubtitleFromPath(link.url)
+                                        } else {
+                                            PlayerApi.getSubtitle(link.url)
+                                        }
+                                        viewModel.setSubtitles(subs)
+                                        viewModel.setCurrentSubtitleId(link.id)
                                     } catch (e: Exception) {
                                         android.widget.Toast.makeText(context, "加载字幕失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                     showSubtitleDialog = false
                                 }
                             },
-                            colors = if (isSelected) androidx.wear.compose.material3.ButtonDefaults.buttonColors() else androidx.wear.compose.material3.ButtonDefaults.filledTonalButtonColors(),
+                            colors = if (isSelected) ButtonDefaults.buttonColors() else ButtonDefaults.filledTonalButtonColors(),
                             icon = {
                                 if (isSelected) {
                                     Icon(Icons.Default.Check, contentDescription = null)
@@ -1719,6 +1699,60 @@ fun PlayerScreen(
                     }
                     item { Spacer(modifier = Modifier.height(32.dp)) }
                 }
+            }
+
+        Dialog(
+            visible = showMoreDialog,
+            onDismissRequest = { showMoreDialog = false }
+        ) {
+            val listState = rememberTransformingLazyColumnState()
+            val transformationSpec = rememberTransformationSpec()
+            val isRound = LocalScreenRound.current
+
+            TransformingLazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+                item {
+                    ListHeader {
+                        Text(text = "更多选项", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+                // Playback speed
+                item {
+                    androidx.wear.compose.material3.Button(
+                        onClick = {
+                            val newSpeed = when (playbackSpeed) {
+                                1.0f -> 1.5f; 1.5f -> 2.0f; 2.0f -> 0.5f; else -> 1.0f
+                            }
+                            viewModel.setSpeed(newSpeed)
+                        },
+                        colors = ButtonDefaults.filledTonalButtonColors(),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                        modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec)
+                    ) {
+                        Text(text = "倍速: ${playbackSpeed}x")
+                    }
+                }
+                // Loop toggle
+                item {
+                    val isLooping = remember { mutableStateOf(SharedPreferencesUtil.getBoolean("player_loop", false)) }
+                    androidx.wear.compose.material3.Button(
+                        onClick = {
+                            isLooping.value = !isLooping.value
+                            SharedPreferencesUtil.putBoolean("player_loop", isLooping.value)
+                            mediaPlayer.setOption(OrbitPlayer.OPT_CATEGORY_PLAYER, "loop", if (isLooping.value) 1 else 0)
+                        },
+                        colors = ButtonDefaults.filledTonalButtonColors(),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                        modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec)
+                    ) {
+                        Text(text = if (isLooping.value) "循环播放: 开" else "循环播放: 关")
+                    }
+                }
+                item { Spacer(modifier = Modifier.height(32.dp)) }
             }
         }
     }

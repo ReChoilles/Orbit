@@ -22,7 +22,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material.icons.filled.ScreenRotationAlt
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -65,7 +68,7 @@ fun PlayerCustomizationScreen(
     var showActionDialog by remember { mutableStateOf(false) }
     var configuringSide by remember { mutableIntStateOf(0) } // 0: LT, 1: LB, 2: RT, 3: RB
 
-    val actionNames = listOf("无操作", "弹幕开关", "倍速播放", "音量调节", "字幕设置")
+    val actionNames = listOf("无操作", "弹幕开关", "倍速播放", "音量调节", "字幕设置", "旋转屏幕")
 
     Box(
         modifier = Modifier
@@ -294,6 +297,14 @@ fun PlayerActionIcon(action: Int) {
                 contentDescription = "Subtitle",
                 tint = Color.White.copy(alpha = 0.9f),
                 modifier = Modifier.size(24.dp)
+            )
+        }
+        5 -> {
+            Icon(
+                imageVector = Icons.Filled.ScreenRotation,
+                contentDescription = "Rotate Screen",
+                tint = Color.White.copy(alpha = 0.9f),
+                modifier = Modifier.size(20.dp)
             )
         }
         else -> {

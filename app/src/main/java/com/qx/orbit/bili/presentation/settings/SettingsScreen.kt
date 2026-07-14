@@ -36,6 +36,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
@@ -47,7 +48,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import androidx.wear.compose.foundation.lazy.itemsIndexed
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
+import androidx.wear.compose.material3.Dialog
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.CardDefaults
@@ -75,6 +78,7 @@ import com.qx.orbit.bili.presentation.ui.components.adaptiveTransformedHeight
 import com.qx.orbit.bili.presentation.util.rememberSafeRotaryScrollableBehavior
 import com.qx.orbit.bili.util.AppConfig
 import com.qx.orbit.bili.util.ScreenMode
+import com.qx.orbit.bili.BuildConfig
 import com.qx.orbit.bili.util.SharedPreferencesUtil
 import com.qx.orbit.bili.util.ShizukuUtils
 import kotlinx.coroutines.launch
@@ -361,7 +365,7 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(text = "Apsis Player", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.W700)
-                    Text(text = stringResource(R.string.app_version), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                    Text(text = BuildConfig.VERSION_NAME, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
                 }
             }
             item { Spacer(modifier = Modifier.height(8.dp).adaptiveTransformedHeight(this, transformationSpec)) }
@@ -373,6 +377,7 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                 Triple("player_background", "熄屏继续播放", false),
                 Triple("player_background_audio_only", "后台播放音频", false),
                 Triple("player_autolandscape", "默认横屏", false),
+                Triple("player_softrotate", "软件旋屏", false),
                 Triple("player_scale", "视频可缩放", true),
                 Triple("player_doublemove", "缩放时可移动", true),
                 Triple("player_one_finger_zoom", "单指缩放", false),
@@ -399,6 +404,69 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                     Text(text = "播放器界面自定义", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
+            // Rotate direction settings
+            item {
+                var showRotateStepsDialog by remember { mutableStateOf(false) }
+                Button(
+                    onClick = { showRotateStepsDialog = true },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                ) {
+                    Text(text = "旋转方向设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                val rotateSteps = listOf("竖屏 (0°)" to "0", "横屏 (90°)" to "90", "反向竖屏 (180°)" to "180", "反向横屏 (270°)" to "270")
+                    var selectedSteps by remember {
+                        val saved = SharedPreferencesUtil.getString("player_softrotate_steps", "0,90,180,270")
+                        mutableStateOf(saved.split(",").map { it.trim() }.toSet())
+                    }
+                    Dialog(
+                        visible = showRotateStepsDialog,
+                        onDismissRequest = { showRotateStepsDialog = false }
+                    ) {
+                        val listState = rememberTransformingLazyColumnState()
+                        TransformingLazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            item { Spacer(modifier = Modifier.height(16.dp)) }
+                            item {
+                                ListHeader {
+                                    Text(text = "旋转方向", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            itemsIndexed(rotateSteps) { _, (label, value) ->
+                                val isSelected = selectedSteps.contains(value)
+                                Button(
+                                    onClick = {
+                                        val newSteps = if (isSelected) {
+                                            if (selectedSteps.size > 2) selectedSteps - value else selectedSteps
+                                        } else {
+                                            selectedSteps + value
+                                        }
+                                        selectedSteps = newSteps
+                                        val sorted = newSteps.mapNotNull { it.toIntOrNull() }.sorted()
+                                        SharedPreferencesUtil.putString("player_softrotate_steps", sorted.joinToString(","))
+                                    },
+                                    colors = if (isSelected) ButtonDefaults.buttonColors() else ButtonDefaults.filledTonalButtonColors(),
+                                    icon = { if (isSelected) Icon(Icons.Default.Check, contentDescription = null) },
+                                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                                    modifier = Modifier.fillMaxWidth().adaptiveTransformedHeight(this, transformationSpec)
+                                ) {
+                                    Text(text = label)
+                                }
+                            }
+                            item { Spacer(modifier = Modifier.height(32.dp)) }
+                        }
+                    }
+
+            }
 
 
             item {
@@ -416,6 +484,24 @@ fun SettingApsisPlayerScreen(navController: NavController) {
                     Text(text = "视频渲染方式设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
+
+            //if (BuildConfig.HAS_IJK) {
+                item {
+                    Button(
+                        onClick = { navController.navigate("settings_player_engine") },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .adaptiveTransformedHeight(this, transformationSpec)
+                    ) {
+                        Text(text = "播放引擎设置", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            //}
 
             item {
                 Button(
@@ -913,7 +999,7 @@ fun SettingDanmakuEngineScreen(navController: NavController) {
             val engineOptions = listOf("dfm" to "烈焰弹幕使", "dfmnext" to "DFM-Next(实验性)")
             val engineDescriptions = mapOf(
                 "dfm" to "由B站官方出品，稳定的老牌弹幕引擎",
-                "dfmnext" to "基于DanmakuFlameMaster，使用Kotlin完全重构"
+                "dfmnext" to "使用Kotlin完全重构烈焰弹幕使，并且加入了较为激进的优化策略"
             )
 
             engineOptions.forEach { (value, label) ->
@@ -956,6 +1042,93 @@ fun SettingDanmakuEngineScreen(navController: NavController) {
                 }
             }
 
+        }
+    }
+}
+
+@Composable
+fun SettingPlayerEngineScreen(navController: NavController) {
+    val listState = rememberTransformingLazyColumnState()
+    val transformationSpec = rememberTransformationSpec()
+    val isRound = LocalScreenRound.current
+    var currentEngine by remember { mutableStateOf(SharedPreferencesUtil.getString("player_engine", "ijk")) }
+
+    ScreenScaffold(
+        scrollState = listState,
+        timeText = { WysTimeText() }
+    ) { contentPadding ->
+        TransformingLazyColumn(
+            state = listState,
+            contentPadding = contentPadding,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        , rotaryScrollableBehavior = rememberSafeRotaryScrollableBehavior(listState)) {
+            item {
+                ListHeader(
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .adaptiveTransformedHeight(this, transformationSpec)
+                ) {
+                    Text(text = "播放引擎", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            val engineOptions = listOf(
+                "ijk" to "IJKPlayer",
+                "media3" to "Media3 (ExoPlayer)"
+            )
+            val engineDescriptions = mapOf(
+                "ijk" to if (BuildConfig.HAS_IJK) "基于 FFmpeg 的播放引擎，兼容性最好"
+                         else "基于 FFmpeg 的播放引擎，兼容性最好\n[当前构建不支持IJKPlayer]",
+                "media3" to "Google 官方的播放引擎，支持 DASH 自适应码率"
+            )
+
+            engineOptions.forEach { (value, label) ->
+                val isDisabled = value == "ijk" && !BuildConfig.HAS_IJK
+                item {
+                    TitleCard(
+                        onClick = {
+                            if (!isDisabled) {
+                                currentEngine = value
+                                SharedPreferencesUtil.putString("player_engine", value)
+                            }
+                        },
+                        transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                        title = {
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (currentEngine == value && !isDisabled) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "已选择",
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(label, color = if (isDisabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color.Unspecified)
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = engineDescriptions[value] ?: "",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isDisabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .adaptiveTransformedHeight(this, transformationSpec),
+                        colors = when {
+                            currentEngine == value && !isDisabled -> CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                            isDisabled -> CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f), contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                            else -> CardDefaults.cardColors()
+                        }
+                    )
+                }
+            }
+            item { Spacer(Modifier.height(24.dp)) }
         }
     }
 }
@@ -1234,7 +1407,7 @@ fun SettingPlayerChooseScreen(navController: NavController) {
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Apsis Player (内置)")
+                            Text("Apsis Player")
                         }
                     },
                     modifier = Modifier
@@ -1245,12 +1418,47 @@ fun SettingPlayerChooseScreen(navController: NavController) {
                     } else CardDefaults.cardColors()
                 ) {
                     Text(
-                        "Orbit 内置的播放引擎，基于 IJKPlayer，体验更加无缝，支持进度上报等独占功能",
+                        "Orbit 内置的播放引擎，支持播放器/弹幕引擎双模切换，支持进度上报等独占功能",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
             
+            item {
+                TitleCard(
+                    onClick = {
+                        currentPlayer = "pureAudioPlayer"
+                        SharedPreferencesUtil.putString("player", "pureAudioPlayer")
+                    },
+                    transformation = if (isRound) SurfaceTransformation(transformationSpec) else null,
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (currentPlayer == "pureAudioPlayer") {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "已选择",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Apsis AudioPlayer")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .adaptiveTransformedHeight(this, transformationSpec),
+                    colors = if (currentPlayer == "pureAudioPlayer") {
+                        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                    } else CardDefaults.cardColors()
+                ) {
+                    Text(
+                        "Orbit 内置的专为听视频设计的音频播放引擎，界面采用原生风格，更加接近音乐软件",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
             item {
                 TitleCard(
                     onClick = {

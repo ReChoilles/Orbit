@@ -6,14 +6,17 @@ import androidx.wear.compose.material3.ColorScheme
 val wearColorScheme: ColorScheme =
     ColorScheme(
         primary = Color(0xFFFFB1C6),
+        primaryDim = Color(0xFFFFB1C6),
         onPrimary = Color(0xFF551D31),
         primaryContainer = Color(0xFF703347),
         onPrimaryContainer = Color(0xFFFFD9E1),
         secondary = Color(0xFFE3BDC6),
+        secondaryDim = Color(0xFFE3BDC6),
         onSecondary = Color(0xFF422930),
         secondaryContainer = Color(0xFF5B3F47),
         onSecondaryContainer = Color(0xFFFFD9E1),
         tertiary = Color(0xFFEEBD93),
+        tertiaryDim = Color(0xFFEEBD93),
         onTertiary = Color(0xFF47290B),
         tertiaryContainer = Color(0xFF613F1F),
         onTertiaryContainer = Color(0xFFFFDCC0),

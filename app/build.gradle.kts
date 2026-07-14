@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "com.qx.orbit.bili"
     compileSdk {
-        version = release(36){
+        version = release(37){
             minorApiLevel = 1
         }
     }
@@ -16,8 +16,8 @@ android {
         applicationId = "com.qx.orbit.bili"
         minSdk = 23
         targetSdk = 36
-        versionCode = 507
-        versionName = "0.5.7-Alpha"
+        versionCode = 508
+        versionName = "0.5.8-Alpha"
         resValue("string", "app_verCode", versionCode.toString())
         resValue("string", "app_version", versionName.toString())
     }
@@ -41,6 +41,20 @@ android {
         compose = true
         buildConfig = true
     }
+    flavorDimensions += "player"
+    productFlavors {
+        create("full") {
+            dimension = "player"
+            buildConfigField("boolean", "HAS_IJK", "true")
+            proguardFiles("src/full/keepRules/ijk.keep")
+            versionNameSuffix = "-full"
+        }
+        create("lite") {
+            dimension = "player"
+            buildConfigField("boolean", "HAS_IJK", "false")
+            versionNameSuffix = "-lite"
+        }
+    }
     splits {
         abi {
             isEnable = true
@@ -63,6 +77,7 @@ androidComponents {
         }
     }
 }
+
 
 dependencies {
     implementation(platform(libs.compose.bom))
@@ -88,8 +103,8 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.lifecycle.viewmodel.compose)
 
-    // ijkplayer + DFMNext + DanmakuFlameMaster + brotlij
-    implementation(project(":ijkplayer-java"))
+    // ijkplayer (full flavor only) + DFMNext + DanmakuFlameMaster
+    "fullImplementation"(project(":ijkplayer-java"))
     implementation(project(":DFMNext"))
     implementation(project(":DanmakuFlameMaster"))
 
@@ -125,10 +140,14 @@ dependencies {
 
     // Horologist Audio UI
     implementation(libs.horologist.audio.ui)
+    implementation(libs.horologist.media.ui)
+
+    // Media3 (ExoPlayer)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.datasource.okhttp)
 
     // EventBus
     implementation(libs.eventbus)
-    androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.test.manifest)
     debugImplementation(libs.ui.tooling)
 }

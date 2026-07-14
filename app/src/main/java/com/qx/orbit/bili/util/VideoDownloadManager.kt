@@ -399,21 +399,34 @@ object VideoDownloadManager {
                 danmakuFile.writeText(xmlBuilder.toString())
             }
 
-            if (info.type == "AUDIO_AND_SUBTITLE") {
+            // Download all subtitles (including AI) for all video types
+            run {
                 val subLinks = PlayerApi.getSubtitleLinks(info.aid, info.cid)
-                if (subLinks.isNotEmpty()) {
-                    val sub = subLinks.firstOrNull()
-                    if (sub != null && sub.url.isNotEmpty()) {
+                for (sub in subLinks) {
+                    if (sub.url.isEmpty()) continue
+                    try {
+                        val lang = sub.lang.ifEmpty { if (sub.isAI) "ai" else "unknown" }
+                        val suffix = if (sub.isAI) ".ai.$lang" else ".$lang"
+                        val subFile = File(downloadDir, "${info.filename}$suffix.srt")
+                        if (subFile.exists()) continue
                         val subUrl = sub.url.let { if (it.startsWith("//")) "https:$it" else it }
                         val req = Request.Builder().url(subUrl).build()
                         val resp = client.newCall(req).execute()
                         if (resp.isSuccessful) {
                             val json = resp.body?.string()
-                            val subFile = File(downloadDir, "${info.filename}.srt")
-                            if (json != null) {
-                                subFile.writeText(json)
-                            }
+                            if (json != null) subFile.writeText(json)
                         }
+                    } catch (_: Exception) {}
+                }
+                // Also save a default .srt for backward compatibility (first non-AI, or first AI)
+                val defaultSub = subLinks.firstOrNull { !it.isAI } ?: subLinks.firstOrNull()
+                if (defaultSub != null && defaultSub.url.isNotEmpty()) {
+                    val defaultFile = File(downloadDir, "${info.filename}.srt")
+                    if (!defaultFile.exists()) {
+                        val lang = defaultSub.lang.ifEmpty { if (defaultSub.isAI) "ai" else "unknown" }
+                        val suffix = if (defaultSub.isAI) ".ai.$lang" else ".$lang"
+                        val srcFile = File(downloadDir, "${info.filename}$suffix.srt")
+                        if (srcFile.exists()) srcFile.copyTo(defaultFile)
                     }
                 }
             }

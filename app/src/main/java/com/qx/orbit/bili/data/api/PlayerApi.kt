@@ -218,7 +218,7 @@ object PlayerApi {
                 flacAudio = flacAudio
             )
             val selectedVideo = dashData.getVideoStream(playerData.qn)
-            val selectedAudio = dashData.getBestAudioStream()
+            val selectedAudio = if (playerData.audioQn != -1) dashData.getAudioStream(playerData.audioQn) else dashData.getBestAudioStream()
             playerData.copy(
                 dashData = dashData,
                 videoUrl = selectedVideo?.baseUrl ?: videoStreams.firstOrNull()?.baseUrl ?: "",
@@ -386,10 +386,27 @@ object PlayerApi {
     }
 
     suspend fun getSubtitle(url: String): Array<Subtitle> = withContext(Dispatchers.IO) {
-        val fullUrl = if (url.startsWith("http")) url else "https:$url"
+        val fullUrl = normalizeUrl(url)
         val json = httpGet(fullUrl)
+        parseSubtitleBody(json)
+    }
+
+    suspend fun getSubtitleRaw(url: String): String = withContext(Dispatchers.IO) {
+        val fullUrl = normalizeUrl(url)
+        httpGet(fullUrl)
+    }
+
+    private fun normalizeUrl(url: String): String = when {
+        url.isEmpty() -> ""
+        url.startsWith("http://") || url.startsWith("https://") -> url
+        url.startsWith("//") -> "https:$url"
+        url.startsWith("/") -> "file://$url"
+        else -> "https://$url"
+    }
+
+    private fun parseSubtitleBody(json: String): Array<Subtitle> {
         val body: SubtitleBody? = GsonConfig.gson.fromJson(json, SubtitleBody::class.java)
-        body?.body?.map { s ->
+        return body?.body?.map { s ->
             Subtitle(content = s.content ?: "", from = s.from, to = s.to)
         }?.toTypedArray() ?: emptyArray()
     }
@@ -412,8 +429,8 @@ object PlayerApi {
         )
     }
 
-    fun jumpToPlayer(context: Context, navController: NavController, playerData: PlayerData) {
-        val playerChoice = SharedPreferencesUtil.getString("player", "apsisPlayer")
+    fun jumpToPlayer(context: Context, navController: NavController, playerData: PlayerData, forcePlayerChoice: String? = null) {
+        val playerChoice = forcePlayerChoice ?: SharedPreferencesUtil.getString("player", "apsisPlayer")
         when (playerChoice) {
             "aliangPlayer" -> {
                 CoroutineScope(Dispatchers.IO).launch {
@@ -453,6 +470,12 @@ object PlayerApi {
                         }
                     }
                 }
+            }
+            "pureAudioPlayer" -> {
+                val pd = playerData.copy(audioUrl = "audio")
+                val jsonStr = GsonConfig.gson.toJson(pd)
+                val encodedJson = URLEncoder.encode(jsonStr, StandardCharsets.UTF_8.toString())
+                navController.navigate("player/$encodedJson")
             }
             else -> { // apsisPlayer
                 val jsonStr = GsonConfig.gson.toJson(playerData)
